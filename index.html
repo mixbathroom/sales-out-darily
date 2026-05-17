@@ -150,11 +150,10 @@ select option{background:var(--bg2);color:var(--tx)}
 .toast.on{transform:translateX(-50%) translateY(0)}
 .toast.ok{background:rgba(26,92,58,0.97);border-color:rgba(52,210,122,0.4)}
 .toast.err{background:rgba(120,20,20,0.97);border-color:rgba(231,76,60,0.4)}
-/* Firebase status bar */
-#fb-status{position:fixed;top:0;left:0;right:0;z-index:99998;padding:8px 16px;text-align:center;font-size:12px;font-weight:600;transition:all .4s;max-width:430px;margin:0 auto}
-#fb-status.connecting{background:rgba(245,166,35,0.15);color:#f5a623;border-bottom:.5px solid rgba(245,166,35,0.3)}
-#fb-status.ready{background:rgba(52,210,122,0.12);color:#34d27a;border-bottom:.5px solid rgba(52,210,122,0.2)}
-#fb-status.error{background:rgba(231,76,60,0.15);color:#e74c3c;border-bottom:.5px solid rgba(231,76,60,0.3)}
+/* Firebase status bar — hidden by default, เปลี่ยนมาแสดงที่ปุ่มคู่มือแทน */
+#fb-status{display:none}
+@keyframes fb-pulse{0%,100%{opacity:1}50%{opacity:.55}}
+
 .lbl-row{display:flex;gap:12px;font-size:11px;color:var(--tx2);margin-bottom:7px}
 .lbl-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 .brow{display:grid;grid-template-columns:140px 30px 80px 80px 54px 80px 48px 48px 30px;gap:0;padding:10px 12px;border-bottom:.5px solid rgba(255,255,255,0.06);cursor:pointer;transition:background .15s}
@@ -204,7 +203,11 @@ select option{background:var(--bg2);color:var(--tx)}
       <div class="sub" style="color:#7fa3f0">รายงานยอดสะสม MTD &nbsp;<span style="color:rgba(255,255,255,0.2);font-size:10px">v4.0</span></div>
     </div>
   </div>
-  <div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div id="manual-btn" class="hdr-btn" onclick="openManual()" style="background:rgba(245,166,35,0.15);border-color:rgba(245,166,35,0.4);min-width:54px;transition:all .3s">
+      <svg id="manual-btn-icon" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span id="manual-btn-label" style="color:#f5a623">คู่มือ</span>
+    </div>
     <div class="hdr-btn" onclick="openOverview()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
       <span>ภาพ<br>รวม</span>
@@ -510,7 +513,7 @@ select option{background:var(--bg2);color:var(--tx)}
 </div>
 
 <!-- Confetti canvas -->
-<canvas id="confetti-canvas" style="display:none;position:fixed;inset:0;z-index:1000;pointer-events:none;width:100%;height:100%"></canvas>
+<canvas id="confetti-canvas" style="display:none;position:fixed;inset:0;z-index:998;pointer-events:none;width:100%;height:100%"></canvas>
 
 <!-- ===== BRANCH TABLE PAGE ===== -->
 <div id="pt" class="ov-pg">
@@ -1076,6 +1079,41 @@ let SD=[];
 let _db=null;
 let _fbReady=false; // ป้องกัน initFirebase() ถูกเรียกซ้ำ
 
+// ── Firebase button status indicator ─────────────────
+function setFbBtn(state){
+  var btn=document.getElementById('manual-btn');
+  var ico=document.getElementById('manual-btn-icon');
+  var lbl=document.getElementById('manual-btn-label');
+  var statusEl=document.getElementById('fb-status');
+  if(statusEl) statusEl.style.display='none'; // ซ่อนแถบด้านบนเสมอ
+  if(!btn||!ico||!lbl) return;
+  if(state==='ready'){
+    btn.style.background='rgba(52,210,122,0.15)';
+    btn.style.borderColor='rgba(52,210,122,0.35)';
+    btn.style.animation='';
+    ico.setAttribute('stroke','#34d27a');
+    ico.innerHTML='<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>';
+    lbl.style.color='#34d27a';
+    lbl.textContent='คู่มือ';
+  } else if(state==='error'){
+    btn.style.background='rgba(204,30,46,0.18)';
+    btn.style.borderColor='rgba(204,30,46,0.5)';
+    btn.style.animation='fb-pulse 1.5s ease-in-out infinite';
+    ico.setAttribute('stroke','#f87171');
+    ico.innerHTML='<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+    lbl.style.color='#f87171';
+    lbl.textContent='ออฟไลน์';
+  } else { // connecting
+    btn.style.background='rgba(245,166,35,0.15)';
+    btn.style.borderColor='rgba(245,166,35,0.4)';
+    btn.style.animation='';
+    ico.setAttribute('stroke','#f5a623');
+    ico.innerHTML='<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>';
+    lbl.style.color='#f5a623';
+    lbl.textContent='คู่มือ';
+  }
+}
+
 async function initFirebase(){
   if(_fbReady) return; // ถ้าเชื่อมต่อแล้ว ไม่ init ซ้ำ
   var statusEl = document.getElementById('fb-status');
@@ -1108,10 +1146,9 @@ async function initFirebase(){
     }
 
     // แสดงสถานะพร้อมใช้งาน
+    setFbBtn('ready');
     if(statusEl){
-      statusEl.className='ready';
-      statusEl.textContent='✓ เชื่อมต่อ Firebase สำเร็จ — พร้อมบันทึก';
-      setTimeout(function(){ statusEl.style.display='none'; }, 3000);
+      statusEl.style.display='none';
     }
 
     const q = query(collection(_db,'sales'), orderBy('d','asc'));
@@ -1136,12 +1173,8 @@ async function initFirebase(){
 
   } catch(e) {
     console.error('Firebase init error:', e);
-    if(statusEl){
-      statusEl.className='error';
-      statusEl.textContent='❌ เชื่อมต่อไม่ได้ — แตะที่นี่เพื่อลองใหม่';
-      statusEl.style.cursor='pointer';
-      statusEl.onclick=function(){ statusEl.style.display='none'; initFirebase(); };
-    }
+    setFbBtn('error');
+    if(statusEl) statusEl.style.display='none';
     // แสดงปุ่ม retry บนปุ่มบันทึก
     var saveBtn = document.getElementById('btn-save');
     if(saveBtn){
@@ -1150,7 +1183,7 @@ async function initFirebase(){
       saveBtn.style.cursor = 'pointer';
       saveBtn.style.background = 'linear-gradient(135deg,#7f0000,#cc1e2e)';
       saveBtn.innerHTML = '🔄 &nbsp;ลองเชื่อมต่อใหม่';
-      saveBtn.onclick = function(){ saveBtn.innerHTML='⏳ &nbsp;กำลังเชื่อมต่อ...'; saveBtn.disabled=true; saveBtn.style.opacity='0.5'; saveBtn.onclick=saveE; _fbReady=false; initFirebase(); };
+      saveBtn.onclick = function(){ saveBtn.innerHTML='⏳ &nbsp;กำลังเชื่อมต่อ...'; saveBtn.disabled=true; saveBtn.style.opacity='0.5'; saveBtn.onclick=saveE; setFbBtn('connecting'); _fbReady=false; initFirebase(); };
     }
     toast('❌ ไม่สามารถเชื่อมต่อ Firebase ได้', 'err');
   }
@@ -1309,6 +1342,7 @@ function saveE(){
     tot+=v;
   });
   if(tot===0){ toast('⚠ กรุณากรอกยอดขายอย่างน้อย 1 แบรนด์', 'err'); return; }
+  if(!(br['Beger']>0)){ toast('⚠ กรุณากรอกยอด Beger ก่อนบันทึก', 'err'); document.getElementById('bBeger').focus(); return; }
 
   var bn=bm[0], pv=bm[1], tg=getTarget(bm,d), ps=bm[5], rg=bm[6];
   var pcCount=parseInt(document.getElementById('ipc').value)||0;
@@ -1511,7 +1545,7 @@ function rd(){
   document.getElementById('k5pct').className='mv g';
   document.getElementById('k5bar').style.width='0%';
   var _sleg=document.getElementById('sleg');if(_sleg)_sleg.innerHTML='';
-  document.getElementById('p-best') && (document.getElementById('p-best').textContent='');
+  // p-best element removed — no-op
   var _dowBars=document.getElementById('dow-bars');if(_dowBars)_dowBars.innerHTML='';
   var _periodCards=document.getElementById('period-cards');if(_periodCards)_periodCards.innerHTML='';
   var _dowBest=document.getElementById('dow-best-label');if(_dowBest)_dowBest.textContent='–';
@@ -1798,7 +1832,7 @@ function doExport(){
     var dt=new Date(e.d);
     var r={'PC Sup':e.ps||'','รหัสห้าง':e.bc||'','Name':e.ch||'','สาขา':e.bn||'',
       'Month':MN[dt.getMonth()],'Year':dt.getFullYear(),'เป้าการขาย':e.tg||0,
-      'วันที่':dt.getDate(),'ภูมิภาค':e.rg||''};
+      'วันที่':dt.getDate(),'ภูมิภาค':e.rg||'','PC ประจำ':e.pc||0,'PC Promo':e.pcpromo||0};
     BRANDS.forEach(function(b){r[b]=(e.br&&e.br[b])||0;});
     r[' Total ']=e.tot||0;
     return r;
@@ -2526,7 +2560,364 @@ function updateTitle(){
     </div>
   </div>
 </div>
-<!-- ===== PIN PAD MODAL ===== -->
+<!-- ===== MANUAL MODAL ===== -->
+<style>
+/* ── Modal shell ── */
+#manual-modal{display:none;position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);flex-direction:column;align-items:center}
+#manual-modal.open{display:flex}
+#manual-inner{width:100%;max-width:430px;height:100%;display:flex;flex-direction:column;background:#0a0d1a;overflow:hidden}
+
+/* ── Header ── */
+.man-hdr{background:linear-gradient(160deg,#060a1c 0%,#0d1840 60%,#0f2050 100%);padding:16px;border-bottom:.5px solid rgba(52,210,122,0.2);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.man-hdr-title{font-size:16px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px}
+.man-hdr-badge{font-size:10px;font-weight:700;color:#34d27a;background:rgba(52,210,122,0.12);border:.5px solid rgba(52,210,122,0.3);border-radius:20px;padding:2px 9px;letter-spacing:.3px}
+.man-close-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:7px 14px;color:#aaa;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap}
+.man-back-btn{display:none;background:rgba(52,210,122,0.1);border:.5px solid rgba(52,210,122,0.3);border-radius:10px;padding:7px 14px;color:#34d27a;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+
+/* ── Body ── */
+.man-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#0a0d1a}
+
+/* ── Quick Reference page ── */
+#man-qr{display:block;padding:16px 14px 40px}
+.qr-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:.5px solid rgba(255,255,255,0.07)}
+.qr-pin-ico{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.qr-title{font-size:17px;font-weight:800;color:#fff}
+.qr-sub{font-size:11px;color:#8893b0;margin-top:2px}
+.qr-list{background:#0f1428;border-radius:14px;border:.5px solid rgba(255,255,255,0.07);overflow:hidden}
+.qr-item{display:flex;align-items:center;gap:14px;padding:15px 16px;border-bottom:.5px solid rgba(255,255,255,0.06);cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent}
+.qr-item:last-child{border-bottom:none}
+.qr-item:active{background:rgba(255,255,255,0.04)}
+.qr-num{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;flex-shrink:0}
+.qr-num.c1{background:linear-gradient(135deg,#2244cc,#3d6be0)}
+.qr-num.c2{background:linear-gradient(135deg,#2244cc,#3d6be0)}
+.qr-num.c3{background:linear-gradient(135deg,#2244cc,#3d6be0)}
+.qr-num.c4{background:linear-gradient(135deg,#2244cc,#3d6be0)}
+.qr-num.c5{background:linear-gradient(135deg,#2244cc,#3d6be0)}
+.qr-num.c6{background:linear-gradient(135deg,#145228,#1a6b33)}
+.qr-content{flex:1;min-width:0}
+.qr-label{font-size:14px;font-weight:700;color:#e8ecf4;margin-bottom:3px}
+.qr-desc{font-size:12px;color:#8893b0;line-height:1.5}
+.qr-arr{color:#3d6be0;font-size:18px;flex-shrink:0;font-weight:300}
+.qr-item:nth-child(6) .qr-arr{color:#34d27a}
+
+/* ── Detail page ── */
+#man-detail{display:none;padding:16px 14px 80px}
+.mn-sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:.5px solid rgba(255,255,255,0.07)}
+.mn-sec-num{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex-shrink:0}
+.mn-sec-num.blue{background:linear-gradient(135deg,#2244cc,#3d6be0)}
+.mn-sec-num.green{background:linear-gradient(135deg,#145228,#1a6b33)}
+.mn-sec-ttl{font-size:15px;font-weight:800;color:#fff}
+.mn-sec-sub{font-size:11px;color:#8893b0;margin-top:1px}
+
+/* ── Detail content cards ── */
+.mn-card{background:#0f1428;border-radius:14px;border:.5px solid rgba(255,255,255,0.07);overflow:hidden;margin-bottom:12px}
+.mn-row{display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border-bottom:.5px solid rgba(255,255,255,0.06)}
+.mn-row:last-child{border-bottom:none}
+.mn-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;margin-top:1px}
+.mn-ico.b{background:rgba(61,107,224,0.15)}.mn-ico.g{background:rgba(52,210,122,0.12)}.mn-ico.a{background:rgba(245,166,35,0.12)}
+.mn-lbl{font-size:13px;font-weight:700;color:#e8ecf4;margin-bottom:3px}
+.mn-desc{font-size:12px;color:#8893b0;line-height:1.6}
+.mn-hl{border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.mn-hl.blue{background:rgba(61,107,224,0.1);border:.5px solid rgba(61,107,224,0.28)}
+.mn-hl.green{background:rgba(52,210,122,0.08);border:.5px solid rgba(52,210,122,0.25)}
+.mn-hl.amber{background:rgba(245,166,35,0.08);border:.5px solid rgba(245,166,35,0.25)}
+.mn-hl.red{background:rgba(204,30,46,0.08);border:.5px solid rgba(204,30,46,0.25)}
+.mn-hl-t{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+.mn-hl.green .mn-hl-t{color:#34d27a}.mn-hl.amber .mn-hl-t{color:#f5a623}.mn-hl.red .mn-hl-t{color:#f87171}.mn-hl.blue .mn-hl-t{color:#7fa3f0}
+.mn-hl p,.mn-hl ul{font-size:12px;color:#8893b0;line-height:1.7}
+.mn-hl ul{padding-left:14px}.mn-hl li{margin-bottom:3px}
+.mn-flow{display:flex;flex-direction:column;gap:0;background:#0f1428;border-radius:14px;border:.5px solid rgba(255,255,255,0.07);padding:14px;margin-bottom:12px}
+.mn-fstep{display:flex;align-items:flex-start;gap:11px;padding:10px 0;position:relative}
+.mn-fstep:not(:last-child)::after{content:"";position:absolute;left:14px;top:40px;width:2px;bottom:-10px;background:linear-gradient(180deg,rgba(52,210,122,0.4) 0%,rgba(52,210,122,0.03) 100%)}
+.mn-fdot{width:28px;height:28px;border-radius:50%;background:#0a0d1a;border:2px solid #34d27a;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#34d27a;flex-shrink:0;position:relative;z-index:1}
+.mn-fm{font-size:13px;font-weight:700;color:#e8ecf4;margin-bottom:3px}
+.mn-fd{font-size:12px;color:#8893b0;line-height:1.6}
+.mn-tip{display:flex;align-items:flex-start;gap:9px;background:rgba(245,166,35,0.07);border-left:3px solid #f5a623;border-radius:0 10px 10px 0;padding:10px 12px;margin-bottom:8px}
+.mn-tip p{font-size:12px;color:#8893b0;line-height:1.6}
+.mn-tip strong{color:#f5a623}
+.mn-brand-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.mn-brand{background:#141932;border-radius:7px;padding:7px 4px;text-align:center;font-size:10px;font-weight:600;color:#8893b0;border:.5px solid rgba(255,255,255,0.06)}
+.mn-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.mn-kpi{background:#141932;border-radius:10px;padding:10px;text-align:center}
+.mn-kpi-l{font-size:9px;color:#5c6480;margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px}
+.mn-kpi-v{font-size:13px;font-weight:700;color:#7fa3f0}
+.mn-kpi-v.g{color:#34d27a}.mn-kpi-v.a{color:#f5a623}
+.mn-save-mock{background:linear-gradient(135deg,#a0101e 0%,#cc1e2e 100%);border-radius:12px;padding:14px;text-align:center;font-size:15px;font-weight:700;color:#fff;box-shadow:0 4px 16px rgba(204,30,46,0.3);margin-bottom:10px}
+
+/* ── Nav bar (detail only) ── */
+.mn-nav{display:none;gap:8px;padding:12px 14px;background:#0a0d1a;border-top:.5px solid rgba(255,255,255,0.07);flex-shrink:0}
+.mn-nav.show{display:flex}
+.mn-nav-btn{flex:1;padding:12px;border-radius:12px;border:.5px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#8893b0;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.mn-nav-btn.next{background:linear-gradient(135deg,rgba(52,210,122,0.2),rgba(52,210,122,0.1));border-color:rgba(52,210,122,0.3);color:#34d27a}
+.mn-nav-btn:active{opacity:.8;transform:scale(.98)}
+</style>
+
+<div id="manual-modal">
+<div id="manual-inner">
+
+  <!-- Header -->
+  <div class="man-hdr">
+    <div class="man-hdr-title">
+      &#128218;&nbsp; <span id="man-hdr-txt">&#xE04;&#xE39;&#xE48;&#xE21;&#xE37;&#xE2D;&#xE01;&#xE32;&#xE23;&#xE43;&#xE0A;&#xE49;&#xE07;&#xE32;&#xE19;</span>
+      <span class="man-hdr-badge">v4.0</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="man-back-btn" id="man-back-btn" onclick="manBack()">&#x2190; &#xE01;&#xE25;&#xE31;&#xE1A;</button>
+      <button class="man-close-btn" onclick="closeManual()">&#x2715; &#xE1B;&#xE34;&#xE14;</button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="man-body" id="man-body">
+
+    <!-- ── QUICK REFERENCE ── -->
+    <div id="man-qr">
+      <div class="qr-header">
+        <div class="qr-pin-ico">&#x1F4CC;</div>
+        <div>
+          <div class="qr-title">&#xE2A;&#xE23;&#xE38;&#xE1B;&#xE02;&#xE31;&#xE49;&#xE19;&#xE15;&#xE2D;&#xE19;&#xE41;&#xE1A;&#xE1A;&#xE22;&#xE48;&#xE2D;</div>
+          <div class="qr-sub">Quick Reference &#x2022; &#xE01;&#xE14;&#xE40;&#xE02;&#xE49;&#xE32;&#xE44;&#xE1B;&#xE14;&#xE39;&#xE23;&#xE32;&#xE22;&#xE25;&#xE30;&#xE40;&#xE2D;&#xE35;&#xE22;&#xE14;</div>
+        </div>
+      </div>
+      <div class="qr-list">
+        <div class="qr-item" onclick="manDetail(0)">
+          <div class="qr-num c1">1</div>
+          <div class="qr-content">
+            <div class="qr-label">&#xE40;&#xE25;&#xE37;&#xE2D;&#xE01;&#xE27;&#xE31;&#xE19;&#xE17;&#xE35;&#xE48;</div>
+            <div class="qr-desc">&#xE15;&#xE23;&#xE27;&#xE08;&#xE2A;&#xE2D;&#xE1A;&#xE27;&#xE31;&#xE19;&#xE17;&#xE35;&#xE48;&#xE43;&#xE2B;&#xE49;&#xE16;&#xE39;&#xE01;&#xE15;&#xE49;&#xE2D;&#xE07; (&#xE1B;&#xE01;&#xE15;&#xE34;&#xE15;&#xE31;&#xE49;&#xE07;&#xE21;&#xE32;&#xE43;&#xE2B;&#xE49;&#xE2D;&#xE31;&#xE15;&#xE42;&#xE19;&#xE21;&#xE31;&#xE15;&#xE34;)</div>
+          </div>
+          <div class="qr-arr">&#x203A;</div>
+        </div>
+        <div class="qr-item" onclick="manDetail(1)">
+          <div class="qr-num c2">2</div>
+          <div class="qr-content">
+            <div class="qr-label">&#xE40;&#xE25;&#xE37;&#xE2D;&#xE01;&#xE2B;&#xE49;&#xE32;&#xE07; &#x2192; &#xE40;&#xE25;&#xE37;&#xE2D;&#xE01;&#xE2A;&#xE32;&#xE02;&#xE32;</div>
+            <div class="qr-desc">&#xE15;&#xE23;&#xE27;&#xE08;&#xE2A;&#xE2D;&#xE1A;&#xE40;&#xE1B;&#x49;&#xE32;&#xE41;&#xE25;&#xE30; PC Sup &#xE17;&#xE35;&#xE48;&#xE41;&#xE2A;&#xE14;&#xE07;&#xE2D;&#xE31;&#xE15;&#xE42;&#xE19;&#xE21;&#xE31;&#xE15;&#xE34;</div>
+          </div>
+          <div class="qr-arr">&#x203A;</div>
+        </div>
+        <div class="qr-item" onclick="manDetail(2)">
+          <div class="qr-num c3">3</div>
+          <div class="qr-content">
+            <div class="qr-label">&#xE01;&#xE23;&#xE2D;&#xE01;&#xE22;&#xE2D;&#xE14; Beger (MTD)</div>
+            <div class="qr-desc">&#xE0A;&#xE48;&#xE2D;&#xE07;&#xE43;&#xE2B;&#xE0D;&#xE48;&#xE2A;&#xE35;&#xE40;&#xE02;&#xE35;&#xE22;&#xE27; &#x2014; &#xE01;&#xE23;&#xE2D;&#xE01;&#xE40;&#xE1B;&#xE47;&#xE19;&#xE15;&#xE31;&#xE27;&#xE40;&#xE25;&#xE02;&#xE40;&#xE17;&#xE48;&#xE32;&#xE19;&#xE31;&#xE49;&#xE19;</div>
+          </div>
+          <div class="qr-arr">&#x203A;</div>
+        </div>
+        <div class="qr-item" onclick="manDetail(3)">
+          <div class="qr-num c4">4</div>
+          <div class="qr-content">
+            <div class="qr-label">&#xE01;&#xE23;&#xE2D;&#xE01; PC &#xE1B;&#xE23;&#xE30;&#xE08;&#xE33; + PC Promo</div>
+            <div class="qr-desc">&#xE43;&#xE2A;&#xE48;&#xE08;&#xE33;&#xE19;&#xE27;&#xE19;&#xE1E;&#xE19;&#xE31;&#xE01;&#xE07;&#xE32;&#xE19; PC &#xE17;&#xE31;&#xE49;&#xE07;&#xE2A;&#xE2D;&#xE07;&#xE0A;&#xE48;&#xE2D;&#xE07;</div>
+          </div>
+          <div class="qr-arr">&#x203A;</div>
+        </div>
+        <div class="qr-item" onclick="manDetail(4)">
+          <div class="qr-num c5">5</div>
+          <div class="qr-content">
+            <div class="qr-label">&#xE01;&#xE23;&#xE2D;&#xE01;&#xE22;&#xE2D;&#xE14;&#xE04;&#xE39;&#xE48;&#xE41;&#xE02;&#xE48;&#xE07; (16 &#xE41;&#xE1A;&#xE23;&#xE19;&#xE14;&#xE4C;)</div>
+            <div class="qr-desc">&#xE01;&#xE23;&#xE2D;&#xE01;&#xE41;&#xE1A;&#xE23;&#xE19;&#xE14;&#xE4C;&#xE17;&#xE35;&#xE48;&#xE21;&#xE35;&#xE01;&#xE32;&#xE23;&#xE02;&#xE32;&#xE22;&#xE08;&#xE23;&#xE34;&#xE07; &#xE41;&#xE1A;&#xE23;&#xE19;&#xE14;&#xE4C;&#xE17;&#xE35;&#xE48;&#xE44;&#xE21;&#xE48;&#xE21;&#xE35;&#xE1B;&#xE25;&#xE48;&#xE2D;&#xE22;&#xE27;&#xE48;&#xE32;&#xE07;</div>
+          </div>
+          <div class="qr-arr">&#x203A;</div>
+        </div>
+        <div class="qr-item" onclick="manDetail(5)">
+          <div class="qr-num c6">6</div>
+          <div class="qr-content">
+            <div class="qr-label">&#xE01;&#xE14;&#xE1A;&#xE31;&#xE19;&#xE17;&#xE36;&#xE01; &#x2192; &#xE22;&#xE37;&#xE19;&#xE22;&#xE31;&#xE19;</div>
+            <div class="qr-desc">&#xE15;&#xE23;&#xE27;&#xE08;&#xE2A;&#xE2D;&#xE1A;&#xE2A;&#xE23;&#xE38;&#xE1B; &#xE41;&#xE25;&#xE49;&#xE27;&#xE01;&#xE14; "&#x2713; &#xE22;&#xE37;&#xE19;&#xE22;&#xE31;&#xE19;&#xE1A;&#xE31;&#xE19;&#xE17;&#xE36;&#xE01;"</div>
+          </div>
+          <div class="qr-arr" style="color:#34d27a">&#x203A;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DETAIL PAGES ── -->
+    <div id="man-detail">
+
+      <!-- Step 0: วันที่ -->
+      <div class="man-pg" id="manpg0">
+        <div class="mn-sec-hdr">
+          <div class="mn-sec-num blue">1</div>
+          <div><div class="mn-sec-ttl">&#xE40;&#xE25;&#xE37;&#xE2D;&#xE01;&#xE27;&#xE31;&#xE19;&#xE17;&#xE35;&#xE48;</div><div class="mn-sec-sub">&#xE27;&#xE31;&#xE19;&#xE17;&#xE35;&#xE48;&#xE17;&#xE33;&#xE23;&#xE32;&#xE22;&#xE01;&#xE32;&#xE23;</div></div>
+        </div>
+        <div class="mn-card">
+          <div class="mn-row"><div class="mn-ico b">&#x1F4C5;</div><div><div class="mn-lbl">&#xE27;&#xE31;&#xE19;&#xE17;&#xE35;&#xE48;&#xE17;&#xE33;&#xE23;&#xE32;&#xE22;&#xE01;&#xE32;&#xE23;</div><div class="mn-desc">&#xE23;&#xE30;&#xE1A;&#xE1A;&#xE15;&#xE31;&#xE49;&#xE07;&#xE04;&#xE48;&#xE32;&#xE40;&#xE1B;&#xE47;&#xE19; <strong style="color:#fff">&#xE27;&#xE31;&#xE19;&#xE1B;&#xE31;&#xE08;&#xE08;&#xE38;&#xE1A;&#xE31;&#xE19;&#xE2D;&#xE31;&#xE15;&#xE42;&#xE19;&#xE21;&#xE31;&#xE15;&#xE34;</strong> &#xE40;&#xE21;&#xE37;&#xE48;&#xE2D;&#xE40;&#xE1B;&#xE34;&#xE14;&#xE41;&#xE2D;&#xE1B;&#xE2F; &#xE1B;&#xE01;&#xE15;&#xE34;&#xE44;&#xE21;&#xE48;&#xE15;&#xE49;&#xE2D;&#xE07;&#xE41;&#xE01;&#xE49;&#xE44;&#xE02;</div></div></div>
+          <div class="mn-row"><div class="mn-ico a">&#x270F;&#xFE0F;</div><div><div class="mn-lbl">&#xE01;&#xE23;&#xE13;&#xE35;&#xE15;&#xE49;&#xE2D;&#xE07;&#xE01;&#xE32;&#xE23;&#xE40;&#xE1B;&#xE25;&#xE35;&#xE48;&#xE22;&#xE19;&#xE27;&#xE31;&#xE19;&#xE17;&#xE35;&#xE48;</div><div class="mn-desc">&#xE01;&#xE14;&#xE44;&#xE2D;&#xE04;&#xE2D;&#xE19;&#xE1B;&#xE0F;&#xE34;&#xE17;&#xE34;&#xE19; &#x1F5D3; &#xE14;&#xE49;&#xE32;&#xE19;&#xE02;&#xE27;&#xE32; &#xE40;&#xE1E;&#xE37;&#xE48;&#xE2D;&#xE40;&#xE1B;&#xE34;&#xE14; Date Picker &#xE41;&#xE25;&#xE49;&#xE27;&#xE40;&#xE25;&#xE37;&#xE2D;&#xE01;&#xE27;&#xE31;&#xE19;&#xE17;&#xE35;&#xE48;&#xE17;&#xE35;&#xE48;&#xE15;&#xE49;&#xE2D;&#xE07;&#xE01;&#xE32;&#xE23;</div></div></div>
+        </div>
+        <div class="mn-hl amber"><div class="mn-hl-t">&#x26A0;&#xFE0F; &#xE02;&#xE49;&#xE2D;&#xE04;&#xE27;&#xE23;&#xE23;&#xE30;&#xE27;&#xE31;&#xE07;</div><ul><li>&#xE27;&#xE31;&#xE19;&#xE17;&#xE35;&#xE48;&#xE17;&#xE35;&#xE48;&#xE01;&#xE23;&#xE2D;&#xE01;&#xE08;&#xE30;&#xE16;&#xE39;&#xE01;&#xE43;&#xE0A;&#xE49;&#xE04;&#xE33;&#xE19;&#xE27;&#xE13; <strong style="color:#fff">&#xE40;&#xE1B;&#x49;&#xE32;&#xE2B;&#xE21;&#xE32;&#xE22;&#xE23;&#xE32;&#xE22;&#xE40;&#xE14;&#xE37;&#xE2D;&#xE19;</strong></li><li>&#xE01;&#xE23;&#xE2D;&#xE01;&#xE22;&#xE49;&#xE2D;&#xE19;&#xE2B;&#xE25;&#xE31;&#xE07; &#x2192; &#xE40;&#xE1B;&#xE25;&#xE35;&#xE48;&#xE22;&#xE19;&#xE27;&#xE31;&#xE19;&#xE17;&#xE35;&#xE48;&#xE43;&#xE2B;&#xE49;&#xE15;&#xE23;&#xE07;&#xE01;&#xE31;&#xE1A;&#xE27;&#xE31;&#xE19;&#xE17;&#xE35;&#xE48;&#xE21;&#xE35;&#xE22;&#xE2D;&#xE14;&#xE02;&#xE32;&#xE22;&#xE08;&#xE23;&#xE34;&#xE07;</li></ul></div>
+      </div>
+
+      <!-- Step 1: สาขา -->
+      <div class="man-pg" id="manpg1">
+        <div class="mn-sec-hdr">
+          <div class="mn-sec-num blue">2</div>
+          <div><div class="mn-sec-ttl">&#xE40;&#xE25;&#xE37;&#xE2D;&#xE01;&#xE2B;&#xE49;&#xE32;&#xE07; &#x2192; &#xE2A;&#xE32;&#xE02;&#xE32;</div><div class="mn-sec-sub">&#xE0A;&#xE37;&#xE48;&#xE2D;&#xE2A;&#xE32;&#xE02;&#xE32;</div></div>
+        </div>
+        <div class="mn-flow">
+          <div class="mn-fstep"><div class="mn-fdot">1</div><div><div class="mn-fm">&#xE40;&#xE25;&#xE37;&#xE2D;&#xE01;&#xE2B;&#xE49;&#xE32;&#xE07; (Chain)</div><div class="mn-fd">&#xE01;&#xE14; dropdown &#xE41;&#xE23;&#xE01; &#xE40;&#xE25;&#xE37;&#xE2D;&#xE01;&#xE2B;&#xE49;&#xE32;&#xE07; &#xE40;&#xE0A;&#xE48;&#xE19; Homepro, DoHome, Thai Watsadu &#xE2F;&#xE25;&#xE2F;</div></div></div>
+          <div class="mn-fstep"><div class="mn-fdot">2</div><div><div class="mn-fm">&#xE40;&#xE25;&#xE37;&#xE2D;&#xE01;&#xE2A;&#xE32;&#xE02;&#xE32;</div><div class="mn-fd">dropdown &#xE17;&#xE35;&#xE48; 2 &#xE08;&#xE30;&#xE42;&#xE2B;&#xE25;&#xE14;&#xE2A;&#xE32;&#xE02;&#xE32;&#xE43;&#xE19;&#xE2B;&#xE49;&#xE32;&#xE07;&#xE19;&#xE31;&#xE49;&#xE19; &#x2192; &#xE40;&#xE25;&#xE37;&#xE2D;&#xE01;&#xE2A;&#xE32;&#xE02;&#xE32;&#xE17;&#xE35;&#xE48;&#xE15;&#xE49;&#xE2D;&#xE07;&#xE01;&#xE32;&#xE23;&#xE1A;&#xE31;&#xE19;&#xE17;&#xE36;&#xE01;</div></div></div>
+          <div class="mn-fstep"><div class="mn-fdot">3</div><div><div class="mn-fm">&#xE15;&#xE23;&#xE27;&#xE08;&#xE2A;&#xE2D;&#xE1A;&#xE02;&#xE49;&#xE2D;&#xE21;&#xE39;&#xE25;&#xE2A;&#xE32;&#xE02;&#xE32;</div><div class="mn-fd">&#xE23;&#xE30;&#xE1A;&#xE1A;&#xE41;&#xE2A;&#xE14;&#xE07; <strong style="color:#7fa3f0">&#xE40;&#xE1B;&#x49;&#xE32;&#xE01;&#xE32;&#xE23;&#xE02;&#xE32;&#xE22; / PC Sup / &#xE20;&#xE39;&#xE21;&#xE34;&#xE20;&#xE32;&#xE04; / &#xE08;&#xE31;&#xE07;&#xE2B;&#xE27;&#xE31;&#xE14;</strong> &#xE2D;&#xE31;&#xE15;&#xE42;&#xE19;&#xE21;&#xE31;&#xE15;&#xE34;</div></div></div>
+        </div>
+        <div class="mn-hl green"><div class="mn-hl-t">&#x2705; &#xE02;&#xE49;&#xE2D;&#xE21;&#xE39;&#xE25;&#xE2D;&#xE31;&#xE15;&#xE42;&#xE19;&#xE21;&#xE31;&#xE15;&#xE34;</div><div class="mn-kpi-grid"><div class="mn-kpi"><div class="mn-kpi-l">&#xE40;&#xE1B;&#x49;&#xE32;&#xE01;&#xE32;&#xE23;&#xE02;&#xE32;&#xE22;</div><div class="mn-kpi-v" style="color:#7fa3f0">&#xE3F; 720,000</div></div><div class="mn-kpi"><div class="mn-kpi-l">PC Sup</div><div class="mn-kpi-v" style="font-size:11px;color:#e8ecf4">&#xE04;&#xE38;&#xE13;&#xE41;&#xE08;&#xE21; &#xE2A;&#xE38;&#xE01;&#xE24;&#xE15;&#xE32;</div></div><div class="mn-kpi"><div class="mn-kpi-l">&#xE20;&#xE39;&#xE21;&#xE34;&#xE20;&#xE32;&#xE04;</div><div class="mn-kpi-v" style="font-size:11px;color:#e8ecf4">&#xE20;&#xE32;&#xE04;&#xE01;&#xE25;&#xE32;&#xE07;</div></div><div class="mn-kpi"><div class="mn-kpi-l">&#xE08;&#xE31;&#xE07;&#xE2B;&#xE27;&#xE31;&#xE14;</div><div class="mn-kpi-v" style="font-size:11px;color:#e8ecf4">&#xE19;&#xE19;&#xE17;&#xE1A;&#xE38;&#xE23;&#xE35;</div></div></div></div>
+      </div>
+
+      <!-- Step 2: ยอด Beger -->
+      <div class="man-pg" id="manpg2">
+        <div class="mn-sec-hdr">
+          <div class="mn-sec-num blue">3</div>
+          <div><div class="mn-sec-ttl">&#xE01;&#xE23;&#xE2D;&#xE01;&#xE22;&#xE2D;&#xE14; Beger</div><div class="mn-sec-sub">&#xE22;&#xE2D;&#xE14;&#xE2A;&#xE30;&#xE2A;&#xE21; MTD</div></div>
+        </div>
+        <div class="mn-card">
+          <div class="mn-row"><div class="mn-ico g">&#xE3F;</div><div><div class="mn-lbl">&#xE22;&#xE2D;&#xE14; Beger &#xE27;&#xE31;&#xE19;&#xE19;&#xE35;&#xE49; (&#xE1A;&#xE32;&#xE17;)</div><div class="mn-desc">&#xE01;&#xE23;&#xE2D;&#xE01;&#xE22;&#xE2D;&#xE14;&#xE02;&#xE32;&#xE22; Beger &#xE2A;&#xE30;&#xE2A;&#xE21; MTD &#x2014; <strong style="color:#fff">&#xE15;&#xE31;&#xE27;&#xE40;&#xE25;&#xE02;&#xE40;&#xE17;&#xE48;&#xE32;&#xE19;&#xE31;&#xE49;&#xE19;</strong> &#xE44;&#xE21;&#xE48;&#xE15;&#xE49;&#xE2D;&#xE07;&#xE43;&#xE2A;&#xE48;&#xE25;&#xE39;&#xE01;&#xE19;&#xE49;&#xE33;&#xE2B;&#xE23;&#xE37;&#xE2D; &#xE3F;</div></div></div>
+        </div>
+        <div style="background:#0f1428;border-radius:14px;border:.5px solid rgba(255,255,255,0.07);padding:14px;margin-bottom:12px">
+          <div style="font-size:10px;font-weight:700;color:#7fa3f0;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">&#xE22;&#xE2D;&#xE14; Beger &#xE27;&#xE31;&#xE19;&#xE19;&#xE35;&#xE49; (&#xE1A;&#xE32;&#xE17;)</div>
+          <div style="background:#0a0d1a;border:1.5px solid rgba(52,210,122,0.3);border-radius:10px;padding:16px;text-align:center;font-size:28px;font-weight:800;color:#34d27a">&#xE3F; &nbsp;85,000</div>
+          <div style="font-size:11px;color:#5c6480;text-align:center;margin-top:6px">&#xE23;&#xE30;&#xE1A;&#xE1A;&#xE43;&#xE2A;&#xE48;&#xE25;&#xE39;&#xE01;&#xE19;&#xE49;&#xE33;&#xE43;&#xE2B;&#xE49;&#xE2D;&#xE31;&#xE15;&#xE42;&#xE19;&#xE21;&#xE31;&#xE15;&#xE34;</div>
+        </div>
+        <div class="mn-tip"><div style="font-size:16px;flex-shrink:0">&#x1F4A1;</div><p><strong>&#xE22;&#xE2D;&#xE14;&#xE17;&#xE35;&#xE48;&#xE01;&#xE23;&#xE2D;&#xE01;</strong> &#xE04;&#xE37;&#xE2D;&#xE22;&#xE2D;&#xE14;&#xE2A;&#xE30;&#xE2A;&#xE21;&#xE15;&#xE31;&#xE49;&#xE07;&#xE41;&#xE15;&#xE48;&#xE15;&#xE49;&#xE19;&#xE40;&#xE14;&#xE37;&#xE2D;&#xE19;&#xE16;&#xE36;&#xE07;&#xE27;&#xE31;&#xE19;&#xE19;&#xE35;&#xE49; (MTD) &#xE44;&#xE21;&#xE48;&#xE43;&#xE0A;&#xE48;&#xE22;&#xE2D;&#xE14;&#xE40;&#xE09;&#xE1E;&#xE32;&#xE30;&#xE27;&#xE31;&#xE19;&#xE40;&#xE14;&#xE35;&#xE22;&#xE27;</p></div>
+      </div>
+
+      <!-- Step 3: PC -->
+      <div class="man-pg" id="manpg3">
+        <div class="mn-sec-hdr">
+          <div class="mn-sec-num blue">4</div>
+          <div><div class="mn-sec-ttl">&#xE01;&#xE23;&#xE2D;&#xE01;&#xE08;&#xE33;&#xE19;&#xE27;&#xE19; PC</div><div class="mn-sec-sub">PC &#xE1B;&#xE23;&#xE30;&#xE08;&#xE33; &#xE41;&#xE25;&#xE30; PROMOTION</div></div>
+        </div>
+        <div class="mn-card">
+          <div class="mn-row"><div class="mn-ico b">&#x1F464;</div><div><div class="mn-lbl">PC &#xE1B;&#xE23;&#xE30;&#xE08;&#xE33;</div><div class="mn-desc">&#xE08;&#xE33;&#xE19;&#xE27;&#xE19; PC &#xE1B;&#xE23;&#xE30;&#xE08;&#xE33;&#xE2A;&#xE32;&#xE02;&#xE32; (&#xE1E;&#xE19;&#xE31;&#xE01;&#xE07;&#xE32;&#xE19;&#xE02;&#xE32;&#xE22; Beger &#xE17;&#xE35;&#xE48;&#xE1B;&#xE23;&#xE30;&#xE08;&#xE33;&#xE2D;&#xE22;&#xE39;&#xE48;)</div></div></div>
+          <div class="mn-row"><div class="mn-ico a">&#x1F381;</div><div><div class="mn-lbl">&#xE2B;&#xE19;&#xE48;&#xE27;&#xE22; PROMOTION</div><div class="mn-desc">PC &#xE17;&#xE35;&#xE48;&#xE40;&#xE1E;&#xE34;&#xE48;&#xE21;&#xE0A;&#xE31;&#xE48;&#xE27;&#xE04;&#xE23;&#xE32;&#xE27;&#xE0A;&#xE48;&#xE27;&#xE07;&#xE42;&#xE1B;&#xE23;&#xE42;&#xE21;&#xE0A;&#xE31;&#xE19; &#x2014; &#xE16;&#xE49;&#xE32;&#xE44;&#xE21;&#xE48;&#xE21;&#xE35;&#xE43;&#xE2B;&#xE49;&#xE43;&#xE2A;&#xE48; <strong style="color:#fff">0</strong></div></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+          <div style="background:#0f1428;border-radius:12px;border:.5px solid rgba(255,255,255,0.07);padding:14px;text-align:center"><div style="font-size:10px;color:#5c6480;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">PC &#xE1B;&#xE23;&#xE30;&#xE08;&#xE33;</div><div style="font-size:32px;font-weight:800;color:#e8ecf4">2</div></div>
+          <div style="background:#0f1428;border-radius:12px;border:.5px solid rgba(255,255,255,0.07);padding:14px;text-align:center"><div style="font-size:10px;color:#5c6480;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">&#xE2B;&#xE19;&#xE48;&#xE27;&#xE22; PROMO</div><div style="font-size:32px;font-weight:800;color:#f5a623">1</div></div>
+        </div>
+        <div class="mn-tip"><div style="font-size:16px;flex-shrink:0">&#x1F4A1;</div><p>&#xE27;&#xE31;&#xE19;&#xE17;&#xE35;&#xE48;&#xE44;&#xE21;&#xE48;&#xE21;&#xE35; PC &#xE42;&#xE1B;&#xE23;&#xE42;&#xE21;&#xE0A;&#xE31;&#xE19; &#xE43;&#xE2B;&#xE49;&#xE43;&#xE2A;&#xE48; <strong>0</strong> &#xE43;&#xE19;&#xE0A;&#xE48;&#xE2D;&#xE07; "&#xE2B;&#xE19;&#xE48;&#xE27;&#xE22; PROMOTION"</p></div>
+      </div>
+
+      <!-- Step 4: คู่แข่ง -->
+      <div class="man-pg" id="manpg4">
+        <div class="mn-sec-hdr">
+          <div class="mn-sec-num blue">5</div>
+          <div><div class="mn-sec-ttl">&#xE01;&#xE23;&#xE2D;&#xE01;&#xE22;&#xE2D;&#xE14;&#xE04;&#xE39;&#xE48;&#xE41;&#xE02;&#xE48;&#xE07;</div><div class="mn-sec-sub">16 &#xE41;&#xE1A;&#xE23;&#xE19;&#xE14;&#xE4C;</div></div>
+        </div>
+        <div class="mn-card">
+          <div class="mn-row"><div class="mn-ico b">&#x1F4DD;</div><div><div class="mn-lbl">&#xE27;&#xE34;&#xE18;&#xE35;&#xE01;&#xE23;&#xE2D;&#xE01;</div><div class="mn-desc">&#xE01;&#xE23;&#xE2D;&#xE01;&#xE22;&#xE2D;&#xE14;&#xE2A;&#xE30;&#xE2A;&#xE21; MTD &#xE02;&#xE2D;&#xE07;&#xE41;&#xE15;&#xE48;&#xE25;&#xE30;&#xE41;&#xE1A;&#xE23;&#xE19;&#xE14;&#xE4C; &#x2014; <strong style="color:#fff">&#xE41;&#xE1A;&#xE23;&#xE19;&#xE14;&#xE4C;&#xE17;&#xE35;&#xE48;&#xE44;&#xE21;&#xE48;&#xE21;&#xE35;&#xE01;&#xE32;&#xE23;&#xE02;&#xE32;&#xE22;&#xE1B;&#xE25;&#xE48;&#xE2D;&#xE22;&#xE27;&#xE48;&#xE32;&#xE07;</strong></div></div></div>
+          <div class="mn-row"><div class="mn-ico g">&#x1F9EE;</div><div><div class="mn-lbl">&#xE22;&#xE2D;&#xE14;&#xE23;&#xE27;&#xE21;&#xE2D;&#xE31;&#xE15;&#xE42;&#xE19;&#xE21;&#xE31;&#xE15;&#xE34;</div><div class="mn-desc">&#xE23;&#xE30;&#xE1A;&#xE1A;&#xE23;&#xE27;&#xE21; Beger + &#xE04;&#xE39;&#xE48;&#xE41;&#xE02;&#xE48;&#xE07;&#xE17;&#xE38;&#xE01;&#xE41;&#xE1A;&#xE23;&#xE19;&#xE14;&#xE4C; &#xE41;&#xE2A;&#xE14;&#xE07;&#xE43;&#xE19; <strong style="color:#fff">"&#xE23;&#xE27;&#xE21;&#xE17;&#xE38;&#xE01;&#xE41;&#xE1A;&#xE23;&#xE19;&#xE14;&#xE4C;"</strong> &#xE14;&#xE49;&#xE32;&#xE19;&#xE25;&#xE48;&#xE32;&#xE07;&#xE1F;&#xE2D;&#xE23;&#xE4C;&#xE21;</div></div></div>
+        </div>
+        <div class="mn-hl blue"><div class="mn-hl-t">&#x1F3A8; 16 &#xE41;&#xE1A;&#xE23;&#xE19;&#xE14;&#xE4C;&#xE04;&#xE39;&#xE48;&#xE41;&#xE02;&#xE48;&#xE07;</div><div class="mn-brand-grid"><div class="mn-brand">Toa</div><div class="mn-brand">ICI</div><div class="mn-brand">Jotun</div><div class="mn-brand">Captain</div><div class="mn-brand">Nippon</div><div class="mn-brand">RTB</div><div class="mn-brand">Delta</div><div class="mn-brand">Turbo</div><div class="mn-brand">Pammastic</div><div class="mn-brand">JBP</div><div class="mn-brand">Sunke</div><div class="mn-brand">Woodtect</div><div class="mn-brand">Iloft</div><div class="mn-brand">Loft8</div><div class="mn-brand">TPI</div><div class="mn-brand">Worldpaint</div></div></div>
+        <div class="mn-tip"><div style="font-size:16px;flex-shrink:0">&#x1F4A1;</div><p>&#xE02;&#xE49;&#xE2D;&#xE21;&#xE39;&#xE25;&#xE04;&#xE39;&#xE48;&#xE41;&#xE02;&#xE48;&#xE07;&#xE17;&#xE35;&#xE48;&#xE04;&#xE23;&#xE1A;&#xE16;&#xE49;&#xE27;&#xE19;&#xE17;&#xE33;&#xE43;&#xE2B;&#xE49; <strong>% Market Share</strong> &#xE41;&#xE21;&#xE48;&#xE19;&#xE22;&#xE33;&#xE02;&#xE36;&#xE49;&#xE19;</p></div>
+      </div>
+
+      <!-- Step 5: บันทึก -->
+      <div class="man-pg" id="manpg5">
+        <div class="mn-sec-hdr">
+          <div class="mn-sec-num green">6</div>
+          <div><div class="mn-sec-ttl">&#xE22;&#xE37;&#xE19;&#xE22;&#xE31;&#xE19;&#xE41;&#xE25;&#xE30;&#xE1A;&#xE31;&#xE19;&#xE17;&#xE36;&#xE01;</div><div class="mn-sec-sub">&#xE02;&#xE31;&#xE49;&#xE19;&#xE15;&#xE2D;&#xE19;&#xE2A;&#xE38;&#xE14;&#xE17;&#xE49;&#xE32;&#xE22;</div></div>
+        </div>
+        <div class="mn-flow">
+          <div class="mn-fstep"><div class="mn-fdot">1</div><div><div class="mn-fm">&#xE01;&#xE14;&#xE1B;&#xE38;&#xE48;&#xE21; "&#xE22;&#xE37;&#xE19;&#xE22;&#xE31;&#xE19;&#xE1A;&#xE31;&#xE19;&#xE17;&#xE36;&#xE01;&#xE22;&#xE2D;&#xE14;"</div><div class="mn-fd">&#xE1B;&#xE38;&#xE48;&#xE21;&#xE2A;&#xE35;&#xE41;&#xE14;&#xE07;&#xE14;&#xE49;&#xE32;&#xE19;&#xE25;&#xE48;&#xE32;&#xE07;&#xE2A;&#xE38;&#xE14; &#x2014; &#xE23;&#xE30;&#xE1A;&#xE1A;&#xE08;&#xE30;&#xE41;&#xE2A;&#xE14;&#xE07;&#xE2B;&#xE19;&#xE49;&#xE32;&#xE2A;&#xE23;&#xE38;&#xE1B;&#xE01;&#xE48;&#xE2D;&#xE19;&#xE1A;&#xE31;&#xE19;&#xE17;&#xE36;&#xE01;&#xE08;&#xE23;&#xE34;&#xE07;</div></div></div>
+          <div class="mn-fstep"><div class="mn-fdot">2</div><div><div class="mn-fm">&#xE15;&#xE23;&#xE27;&#xE08;&#xE2A;&#xE2D;&#xE1A;&#xE2B;&#xE19;&#xE49;&#xE32;&#xE2A;&#xE23;&#xE38;&#xE1B;</div><div class="mn-fd">&#xE14;&#xE39; &#xE22;&#xE2D;&#xE14;&#xE2A;&#xE30;&#xE2A;&#xE21; / ACH% / &#xE04;&#xE32;&#xE14;&#xE01;&#xE32;&#xE23;&#xE13;&#xE4C;&#xE2A;&#xE34;&#xE49;&#xE19;&#xE40;&#xE14;&#xE37;&#xE2D;&#xE19; / Market Share / &#xE22;&#xE2D;&#xE14;&#xE41;&#xE22;&#xE01;&#xE41;&#xE1A;&#xE23;&#xE19;&#xE14;&#xE4C;</div></div></div>
+          <div class="mn-fstep"><div class="mn-fdot">3</div><div><div class="mn-fm">&#xE01;&#xE14; "&#x2713; &#xE22;&#xE37;&#xE19;&#xE22;&#xE31;&#xE19;&#xE1A;&#xE31;&#xE19;&#xE17;&#xE36;&#xE01;"</div><div class="mn-fd">&#xE02;&#xE49;&#xE2D;&#xE21;&#xE39;&#xE25;&#xE08;&#xE30;&#xE16;&#xE39;&#xE01;&#xE1A;&#xE31;&#xE19;&#xE17;&#xE36;&#xE01;&#xE25;&#xE07; Firebase &#xE41;&#xE25;&#xE30;&#xE2D;&#xE31;&#xE1B;&#xE40;&#xE14;&#xE15;&#xE41;&#xE14;&#xE0A;&#xE1A;&#xE2D;&#xE23;&#xE4C;&#xE14; Real-time &#xE17;&#xE31;&#xE19;&#xE17;&#xE35;</div></div></div>
+        </div>
+        <div class="mn-save-mock">&#x2713; &nbsp;&#xE22;&#xE37;&#xE19;&#xE22;&#xE31;&#xE19;&#xE1A;&#xE31;&#xE19;&#xE17;&#xE36;&#xE01;&#xE22;&#xE2D;&#xE14;</div>
+        <div style="background:#0f1428;border-radius:14px;border:.5px solid rgba(52,210,122,0.2);padding:14px;margin-bottom:12px">
+          <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px">&#x1F4CB; &#xE15;&#xE31;&#xE27;&#xE2D;&#xE22;&#xE48;&#xE32;&#xE07;&#xE2B;&#xE19;&#xE49;&#xE32;&#xE2A;&#xE23;&#xE38;&#xE1B;</div>
+          <div style="background:rgba(61,107,224,0.12);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#8893b0;border:.5px solid rgba(61,107,224,0.2)">&#x1F3EA; <strong style="color:#fff">HP &#xE1B;&#xE23;&#xE30;&#xE0A;&#xE32;&#xE0A;&#xE37;&#xE48;&#xE19;</strong> &nbsp;&#xB7;&nbsp; &#xE19;&#xE19;&#xE17;&#xE1A;&#xE38;&#xE23;&#xE35; &nbsp;&#xB7;&nbsp; 17 &#xE1E;.&#xE04;. 68</div>
+          <div class="mn-kpi-grid" style="margin-top:0"><div class="mn-kpi"><div class="mn-kpi-l">&#xE22;&#xE2D;&#xE14;&#xE2A;&#xE30;&#xE2A;&#xE21;</div><div class="mn-kpi-v g">&#xE3F; 392,000</div></div><div class="mn-kpi"><div class="mn-kpi-l">ACH%</div><div class="mn-kpi-v a">54.4%</div></div><div class="mn-kpi"><div class="mn-kpi-l">&#xE04;&#xE32;&#xE14;&#xE01;&#xE32;&#xE23;&#xE13;&#xE4C;</div><div class="mn-kpi-v a">&#xE3F; 735,000</div></div><div class="mn-kpi"><div class="mn-kpi-l">&#xE04;&#xE32;&#xE14;&#xE01;&#xE32;&#xE23;&#xE13;&#xE4C; ACH%</div><div class="mn-kpi-v g">102.1%</div></div></div>
+        </div>
+        <div class="mn-hl red"><div class="mn-hl-t">&#x274C; &#xE1A;&#xE31;&#xE19;&#xE17;&#xE36;&#xE01;&#xE44;&#xE21;&#xE48;&#xE2A;&#xE33;&#xE40;&#xE23;&#xE47;&#xE08;</div><ul><li>&#xE15;&#xE23;&#xE27;&#xE08;&#xE2A;&#xE2D;&#xE1A;&#xE01;&#xE32;&#xE23;&#xE40;&#xE0A;&#xE37;&#xE48;&#xE2D;&#xE21;&#xE15;&#xE48;&#xE2D;&#xE2D;&#xE34;&#xE19;&#xE40;&#xE17;&#xE2D;&#xE23;&#xE4C;&#xE40;&#xE19;&#xE47;&#xE15;</li><li>&#xE23;&#xE2D;&#xE43;&#xE2B;&#xE49;&#xE1B;&#xE38;&#xE48;&#xE21;&#xE40;&#xE1B;&#xE25;&#xE35;&#xE48;&#xE22;&#xE19;&#xE08;&#xE32;&#xE01; "&#xE01;&#xE33;&#xE25;&#xE31;&#xE07;&#xE40;&#xE0A;&#xE37;&#xE48;&#xE2D;&#xE21;&#xE15;&#xE48;&#xE2D;..." &#xE01;&#xE48;&#xE2D;&#xE19;</li><li>&#xE01;&#xE14; <strong style="color:#fff">&#x1F504; &#xE25;&#xE2D;&#xE07;&#xE40;&#xE0A;&#xE37;&#xE48;&#xE2D;&#xE21;&#xE15;&#xE48;&#xE2D;&#xE43;&#xE2B;&#xE21;&#xE48;</strong> &#xE16;&#xE49;&#xE32;&#xE40;&#xE0A;&#xE37;&#xE48;&#xE2D;&#xE21;&#xE15;&#xE48;&#xE2D;&#xE44;&#xE21;&#xE48;&#xE44;&#xE14;&#xE49;</li></ul></div>
+      </div>
+
+    </div><!-- end man-detail -->
+  </div><!-- end man-body -->
+
+  <!-- Nav bar (detail only) -->
+  <div class="mn-nav" id="mn-nav-bar">
+    <button class="mn-nav-btn" id="man-prev-btn" onclick="manNav(-1)">&#x2039; &#xE01;&#xE48;&#xE2D;&#xE19;&#xE2B;&#xE19;&#xE49;&#xE32;</button>
+    <button class="mn-nav-btn next" id="man-next-btn" onclick="manNav(1)">&#xE16;&#xE31;&#xE14;&#xE44;&#xE1B; &#x203A;</button>
+  </div>
+
+</div><!-- end manual-inner -->
+</div><!-- end manual-modal -->
+
+<script>
+var _manStep=-1,_manTotal=6;
+
+function openManual(){
+  _manStep=-1;
+  renderManView();
+  var m=document.getElementById('manual-modal');
+  m.style.display='flex';
+  requestAnimationFrame(function(){m.classList.add('open');});
+  document.body.style.overflow='hidden';
+}
+function closeManual(){
+  var m=document.getElementById('manual-modal');
+  m.classList.remove('open');
+  setTimeout(function(){m.style.display='none';},200);
+  document.body.style.overflow='';
+}
+function manDetail(n){
+  _manStep=n;
+  renderManView();
+  document.getElementById('man-body').scrollTo({top:0,behavior:'smooth'});
+}
+function manBack(){
+  _manStep=-1;
+  renderManView();
+  document.getElementById('man-body').scrollTo({top:0,behavior:'smooth'});
+}
+function manNav(dir){
+  _manStep=Math.max(0,Math.min(_manTotal-1,_manStep+dir));
+  renderManView();
+  document.getElementById('man-body').scrollTo({top:0,behavior:'smooth'});
+}
+function renderManView(){
+  var isQR=(_manStep===-1);
+  // show/hide QR vs detail
+  document.getElementById('man-qr').style.display=isQR?'block':'none';
+  document.getElementById('man-detail').style.display=isQR?'none':'block';
+  // back button
+  var bb=document.getElementById('man-back-btn');
+  if(bb)bb.style.display=isQR?'none':'inline-block';
+  // nav bar
+  var nav=document.getElementById('mn-nav-bar');
+  if(nav)nav.className='mn-nav'+(isQR?'':' show');
+  // header text
+  var htxt=document.getElementById('man-hdr-txt');
+  if(htxt){
+    if(isQR){
+      htxt.textContent='คู่มือการใช้งาน';
+    } else {
+      var labels=['วันที่','เลือกสาขา','ยอด Beger','PC','คู่แข่ง','บันทึก'];
+      htxt.textContent='ขั้นตอนที่ '+(_manStep+1)+' — '+labels[_manStep];
+    }
+  }
+  if(!isQR){
+    // show correct detail page
+    for(var i=0;i<_manTotal;i++){
+      var pg=document.getElementById('manpg'+i);
+      if(pg)pg.style.display=(i===_manStep)?'block':'none';
+    }
+    // nav buttons
+    var prev=document.getElementById('man-prev-btn');
+    var next=document.getElementById('man-next-btn');
+    if(prev)prev.style.opacity=_manStep===0?'0.3':'1';
+    if(prev)prev.style.pointerEvents=_manStep===0?'none':'';
+    if(next){
+      if(_manStep===_manTotal-1){
+        next.textContent='✓ เข้าใจแล้ว';
+        next.onclick=closeManual;
+      } else {
+        next.textContent='ถัดไป ›';
+        next.onclick=function(){manNav(1);};
+      }
+    }
+  }
+}
+</script>
+<!-- ===== PIN PAD MODAL ===== --><!-- ===== PIN PAD MODAL ===== -->
 <div id="pin-modal" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);align-items:center;justify-content:center">
   <div style="background:#0f1428;border-radius:24px;width:300px;padding:28px 24px;border:1px solid rgba(127,163,240,0.2);box-shadow:0 12px 48px rgba(0,0,0,0.6);text-align:center">
     <div style="font-size:32px;margin-bottom:10px">🔐</div>
