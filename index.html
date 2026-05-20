@@ -864,6 +864,10 @@ function lsLogout() {
   // ลบ canvas effect ที่ยังค้างอยู่
   var fx = document.getElementById('fx-canvas'); if (fx && fx.parentNode) fx.parentNode.removeChild(fx);
 
+  // 🔧 FIX: reset ปุ่ม btn-confirm-save ให้พร้อมใช้งานครั้งต่อไป
+  var btnCS = document.getElementById('btn-confirm-save');
+  if (btnCS) { btnCS.disabled = false; btnCS.textContent = '✓ ยืนยันบันทึก'; }
+
   // Reset dashboard filters (กันค้างจาก Supervisor mode)
   ['fm','fc','fbr','fps','tm','tc','tps'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.value='';
@@ -1883,6 +1887,9 @@ function closeSaveModal(){
   _pendingEntry=null;
   // ลบ canvas effect ที่ยังค้างอยู่
   var fx=document.getElementById('fx-canvas'); if(fx&&fx.parentNode) fx.parentNode.removeChild(fx);
+  // 🔧 FIX: reset ปุ่มยืนยันบันทึก ให้กดได้อีกครั้ง
+  var btn=document.getElementById('btn-confirm-save');
+  if(btn){ btn.disabled=false; btn.textContent='✓ ยืนยันบันทึก'; }
 }
 
 async function confirmSave(){
