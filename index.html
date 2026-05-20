@@ -2813,27 +2813,34 @@ function rm(){
     }).join('');
   }
 
-  // ── Heat map (แสดงเฉพาะสาขาที่มี miss ≥1) ──
+  // shortDays — 14 วันย้อนหลังจากวันที่เลือก (ใช้ทั้ง heatmap และ chart)
+  var shortDays = days.slice(-14);
+
+  // ── Heat map — เฉพาะสาขาที่ "ไม่ส่งวันที่เลือก" ──
   var heatWrap = el('mm-heatmap');
   if(heatWrap){
-    var missOnly = branchStats.filter(function(b){ return b.missCount>0; }).sort(function(a,b){ return b.missCount-a.missCount; }).slice(0,20);
+    var missOnly = branchStats
+      .filter(function(b){ return !b.submitted.has(todayStr); })
+      .sort(function(a,b){ return b.streak - a.streak; })
+      .slice(0,20);
     if(!missOnly.length){
-      heatWrap.innerHTML='<div style="text-align:center;padding:16px;color:var(--tx3);font-size:12px">🎉 ทุกสาขาส่งครบในช่วงนี้</div>';
+      heatWrap.innerHTML='<div style="text-align:center;padding:16px;color:var(--tx3);font-size:12px">🎉 ทุกสาขาส่งครบวันนี้</div>';
     } else {
-      // แสดงแค่ 10 วันล่าสุดเพื่อไม่ให้แน่น
-      var shortDays = days.slice(-14);
       var html='<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%">';
       html+='<tr><th style="font-size:10px;color:var(--tx3);text-align:left;padding:2px 4px 4px;min-width:80px;max-width:90px">สาขา</th>';
       shortDays.forEach(function(d){
-        var dd=new Date(d); var label=(dd.getMonth()+1)+'/'+(dd.getDate());
-        html+='<th style="font-size:9px;color:var(--tx3);padding:2px 1px;min-width:20px">'+label+'</th>';
+        var dd=new Date(d+'T00:00:00');
+        var isCheck=(d===todayStr);
+        html+='<th style="font-size:9px;color:'+(isCheck?'#7fa3f0':'var(--tx3)')+';padding:2px 1px;min-width:20px;font-weight:'+(isCheck?700:400)+'">'+
+          (dd.getMonth()+1)+'/'+(dd.getDate())+'</th>';
       });
       html+='</tr>';
       missOnly.forEach(function(b){
         html+='<tr><td style="font-size:10px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;padding:2px 4px 2px 0">'+b.bn+'</td>';
         shortDays.forEach(function(d){
           var has=b.submitted.has(d);
-          html+='<td style="padding:1px"><div class="hcell '+(has?'ok':'miss')+'">'+(has?'✓':'✗')+'</div></td>';
+          var isCheck=(d===todayStr);
+          html+='<td style="padding:1px"><div class="hcell '+(has?'ok':'miss')+'" style="'+(isCheck?'outline:1px solid rgba(127,163,240,0.5);':'')+'">'+(has?'✓':'✗')+'</div></td>';
         });
         html+='</tr>';
       });
@@ -2842,30 +2849,29 @@ function rm(){
     }
   }
 
-  // ── Alert list ──
+  // ── Alert list — เฉพาะสาขาที่ไม่ส่งวันที่เลือก ──
   var sort = el('mm-sort') ? el('mm-sort').value : 'streak';
-  var sorted = branchStats.filter(function(b){ return b.missCount>0; }).sort(function(a,b){
-    if(sort==='streak') return b.streak-a.streak;
-    if(sort==='total')  return b.missCount-a.missCount;
-    return (a.lastSent||'') < (b.lastSent||'') ? 1 : -1;
-  });
+  var sorted = branchStats
+    .filter(function(b){ return !b.submitted.has(todayStr); })
+    .sort(function(a,b){
+      if(sort==='streak') return b.streak - a.streak;
+      if(sort==='total')  return b.missCount - a.missCount;
+      return (a.lastSent||'') < (b.lastSent||'') ? 1 : -1;
+    });
 
   var listEl = el('mm-alert-list');
   if(listEl){
     if(!sorted.length){
       listEl.innerHTML='<div style="text-align:center;padding:14px;color:var(--tx3);font-size:12px">🎉 ไม่มีสาขาขาดส่ง</div>';
     } else {
-      listEl.innerHTML = sorted.slice(0,30).map(function(b){
+      listEl.innerHTML = sorted.slice(0,50).map(function(b){
         var badgeCls = b.streak>=5?'red':b.streak>=3?'amber':'green';
         var badgeTxt = b.streak>=5?'🔴 วิกฤต':b.streak>=3?'🟡 เฝ้าระวัง':'🟢 ปกติ';
-        var rateW = b.rate+'%';
-        var rateCol = b.rate>=80?'#34d27a':b.rate>=60?'#fbbf24':'#f87171';
+        var lastTxt  = b.lastSent ? '(ส่งล่าสุด '+new Date(b.lastSent+'T00:00:00').getDate()+'/'+(new Date(b.lastSent+'T00:00:00').getMonth()+1)+')' : 'ยังไม่เคยส่ง';
         return '<div class="miss-list-item">'+
           '<div style="flex:1;min-width:0">'+
             '<div style="font-size:12px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+b.bn+'</div>'+
-            '<div style="font-size:10px;color:var(--tx3);margin-top:2px">'+b.ch+' · ขาด '+b.missCount+' วัน · ติดต่อกัน '+b.streak+' วัน</div>'+
-            '<div style="background:rgba(255,255,255,0.07);border-radius:3px;height:4px;overflow:hidden;margin-top:4px;width:80%">'+
-              '<div style="height:4px;border-radius:3px;background:'+rateCol+';width:'+rateW+'"></div></div>'+
+            '<div style="font-size:10px;color:var(--tx3);margin-top:2px">'+b.ch+' · ติดต่อกัน '+b.streak+' วัน · '+lastTxt+'</div>'+
           '</div>'+
           '<span class="miss-badge '+badgeCls+'">'+badgeTxt+'</span>'+
         '</div>';
