@@ -745,22 +745,41 @@ select option{background:var(--bg2);color:var(--tx)}
   </div>
 
   <!-- Summary metrics -->
-  <div class="miss-metric-row">
-    <div class="miss-metric">
-      <div class="miss-metric-val red" id="mm-miss-today">—</div>
-      <div class="miss-metric-label" id="mm-miss-today-label">ไม่ส่งวันนี้ (สาขา)</div>
+  <!-- Progress bar สรุปวันที่เลือก -->
+  <div style="background:var(--dk3);border-radius:14px;padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <div style="font-size:11px;color:var(--tx3);font-weight:600" id="mm-prog-label">อัตราส่งยอดวันนี้</div>
+      <div style="font-size:22px;font-weight:800;color:#fff" id="mm-rate">—</div>
     </div>
+    <div style="background:rgba(255,255,255,0.07);border-radius:6px;height:10px;overflow:hidden;margin-bottom:10px">
+      <div id="mm-rate-bar" style="height:10px;border-radius:6px;background:linear-gradient(90deg,#3d6be0,#34d27a);width:0%;transition:width .4s"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;text-align:center">
+      <div style="flex:1">
+        <div style="font-size:20px;font-weight:800;color:#34d27a" id="mm-ok">—</div>
+        <div style="font-size:10px;color:var(--tx3);margin-top:3px">✅ ส่งแล้ว</div>
+      </div>
+      <div style="width:.5px;background:var(--bd);margin:0 8px"></div>
+      <div style="flex:1">
+        <div style="font-size:20px;font-weight:800;color:#f87171" id="mm-miss-today">—</div>
+        <div style="font-size:10px;color:var(--tx3);margin-top:3px" id="mm-miss-today-label">❌ ยังไม่ส่ง</div>
+      </div>
+      <div style="width:.5px;background:var(--bd);margin:0 8px"></div>
+      <div style="flex:1">
+        <div style="font-size:20px;font-weight:800;color:#7fa3f0" id="mm-total">—</div>
+        <div style="font-size:10px;color:var(--tx3);margin-top:3px">🏪 ทั้งหมด</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="miss-metric-row">
     <div class="miss-metric">
       <div class="miss-metric-val amber" id="mm-streak">—</div>
       <div class="miss-metric-label">ขาดส่ง ≥3 วันติดต่อกัน</div>
     </div>
     <div class="miss-metric">
-      <div class="miss-metric-val blue" id="mm-rate">—</div>
-      <div class="miss-metric-label">อัตราส่งยอด (เดือนนี้)</div>
-    </div>
-    <div class="miss-metric">
-      <div class="miss-metric-val green" id="mm-ok">—</div>
-      <div class="miss-metric-label">ส่งครบทุกวัน (เดือนนี้)</div>
+      <div class="miss-metric-val red" id="mm-never">—</div>
+      <div class="miss-metric-label">ยังไม่เคยส่งเลย</div>
     </div>
   </div>
 
@@ -778,11 +797,22 @@ select option{background:var(--bg2);color:var(--tx)}
 
   <!-- Heat map -->
   <div class="dark-card" style="margin-bottom:12px;padding:12px 14px">
-    <div class="dark-card-title">🗓 Heat map การส่งยอด (30 วันล่าสุด)
-      <span style="margin-left:auto;display:flex;gap:10px;font-size:10px;font-weight:400">
-        <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(52,210,122,0.25);display:inline-block"></span>ส่งแล้ว</span>
-        <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(248,113,113,0.25);display:inline-block"></span>ไม่ส่ง</span>
-      </span>
+    <div class="dark-card-title" style="margin-bottom:10px">🗓 Heat map การส่งยอด (14 วันล่าสุด)</div>
+    <!-- Toggle มุมมอง -->
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button id="hm-btn-miss" onclick="mmSetHeatMode('miss')"
+        style="flex:1;padding:8px 4px;border-radius:10px;border:.5px solid rgba(248,113,113,0.5);background:rgba(248,113,113,0.18);color:#f87171;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+        ❌ ขาดส่ง
+      </button>
+      <button id="hm-btn-sent" onclick="mmSetHeatMode('sent')"
+        style="flex:1;padding:8px 4px;border-radius:10px;border:.5px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#8893b0;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">
+        ✅ ส่งแล้ว
+      </button>
+    </div>
+    <!-- Legend -->
+    <div style="display:flex;gap:10px;font-size:10px;margin-bottom:8px">
+      <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(52,210,122,0.3);display:inline-block"></span>ส่งแล้ว</span>
+      <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(248,113,113,0.3);display:inline-block"></span>ไม่ส่ง</span>
     </div>
     <div class="heat-wrap">
       <div id="mm-heatmap">
@@ -2648,6 +2678,85 @@ var _mmSup   = '';
 var _mmChart = null;
 var _mmCheckDate = ''; // '' = today
 
+var _mmHeatMode = 'miss'; // 'miss' | 'sent'
+var _branchStatsCache = [];
+var _shortDaysCache   = [];
+var _todayStrCache    = '';
+
+function mmSetHeatMode(mode){
+  _mmHeatMode = mode;
+  var btnM = document.getElementById('hm-btn-miss');
+  var btnS = document.getElementById('hm-btn-sent');
+  var onStyle  = function(col,bg){ return 'flex:1;padding:8px 4px;border-radius:10px;border:.5px solid '+col+';background:'+bg+';font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;'; };
+  if(mode==='miss'){
+    if(btnM){ btnM.style.cssText=onStyle('rgba(248,113,113,0.5)','rgba(248,113,113,0.18)'); btnM.style.color='#f87171'; }
+    if(btnS){ btnS.style.cssText=onStyle('rgba(255,255,255,0.1)','rgba(255,255,255,0.04)'); btnS.style.color='#8893b0'; }
+  } else {
+    if(btnM){ btnM.style.cssText=onStyle('rgba(255,255,255,0.1)','rgba(255,255,255,0.04)'); btnM.style.color='#8893b0'; }
+    if(btnS){ btnS.style.cssText=onStyle('rgba(52,210,122,0.5)','rgba(52,210,122,0.18)'); btnS.style.color='#34d27a'; }
+  }
+  renderHeatmap(_branchStatsCache, _shortDaysCache, _todayStrCache);
+}
+
+function renderHeatmap(branchStats, shortDays, todayStr){
+  _branchStatsCache = branchStats;
+  _shortDaysCache   = shortDays;
+  _todayStrCache    = todayStr;
+
+  var heatWrap = document.getElementById('mm-heatmap');
+  if(!heatWrap) return;
+
+  // กรองตาม mode
+  var filtered;
+  var emptyMsg;
+  if(_mmHeatMode==='miss'){
+    filtered = branchStats.filter(function(b){ return !b.submitted.has(todayStr); })
+                          .sort(function(a,b){ return b.streak - a.streak; });
+    emptyMsg = '🎉 ทุกสาขาส่งครบแล้ววันนี้';
+  } else {
+    filtered = branchStats.filter(function(b){ return b.submitted.has(todayStr); })
+                          .sort(function(a,b){ return (b.lastSent||'') > (a.lastSent||'') ? 1 : -1; });
+    emptyMsg = '📭 ยังไม่มีสาขาส่งยอด';
+  }
+
+  if(!filtered.length){
+    heatWrap.innerHTML='<div style="text-align:center;padding:16px;color:var(--tx3);font-size:12px">'+emptyMsg+'</div>';
+    return;
+  }
+
+  var show = filtered.slice(0,25);
+  var html='<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%">';
+  html+='<tr><th style="font-size:10px;color:var(--tx3);text-align:left;padding:2px 4px 6px;min-width:80px;max-width:100px">สาขา</th>';
+  shortDays.forEach(function(d){
+    var dd=new Date(d+'T00:00:00');
+    var isCheck=(d===todayStr);
+    html+='<th style="font-size:9px;color:'+(isCheck?'#7fa3f0':'var(--tx3)')+
+          ';padding:2px 1px;min-width:20px;font-weight:'+(isCheck?700:400)+
+          (isCheck?';border-bottom:2px solid rgba(127,163,240,0.5)':'')+
+          '">วันที่ '+dd.getDate()+'</th>';
+  });
+  html+='</tr>';
+  show.forEach(function(b){
+    html+='<tr><td style="font-size:10px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;padding:2px 4px 2px 0" title="'+b.bn+' ('+b.ch+')">'+b.bn+'</td>';
+    shortDays.forEach(function(d){
+      var has = b.submitted.has(d);
+      var isCheck=(d===todayStr);
+      html+='<td style="padding:1px"><div class="hcell '+(has?'ok':'miss')+
+            '" style="'+(isCheck?'outline:1.5px solid rgba(127,163,240,0.6);':'')+'">'+
+            (has?'✓':'✗')+'</div></td>';
+    });
+    html+='</tr>';
+  });
+  html+='</table></div>';
+
+  // แสดงจำนวนที่ตัดออก
+  if(filtered.length > 25){
+    html+='<div style="text-align:center;font-size:10px;color:var(--tx3);margin-top:6px">แสดง 25 / '+filtered.length+' สาขา</div>';
+  }
+
+  heatWrap.innerHTML=html;
+}
+
 function mmSetDate(mode){
   var today = new Date();
   var fmt = function(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
@@ -2716,12 +2825,15 @@ function rm(){
     missLbl.textContent = 'ไม่ส่ง '+checkDate.getDate()+' '+thMonth2[checkDate.getMonth()]+' (สาขา)';
   }
 
-  // วันที่ 30 วันล่าสุดนับจาก checkDate
+  // วันที่นับจาก checkDate — เริ่มจาก START_DATE เป็นต้นไปเท่านั้น
+  var START_DATE = '2026-05-19';
   var days = [];
   for(var i=29;i>=0;i--){
     var d = new Date(checkDate); d.setDate(d.getDate()-i);
-    days.push(fmt(d));
+    var ds = fmt(d);
+    if(ds >= START_DATE) days.push(ds);  // ตัดวันก่อน 19 พ.ค. 2026 ทิ้ง
   }
+  if(!days.length) days.push(fmt(checkDate)); // safety fallback
 
   // ── สร้าง submitted set จาก SD ──
   var submittedMap = {}; // bc -> Set of dates
@@ -2773,17 +2885,39 @@ function rm(){
     return Object.assign({}, b, {missCount:missCount, streak:streak, rate:rate, lastSent:lastSent});
   });
 
-  // ── Summary metrics ──
-  var missToday = branchStats.filter(function(b){ return !b.submitted.has(todayStr); }).length;
-  var streakAlert = branchStats.filter(function(b){ return b.streak>=3; }).length;
-  var avgRate = branchStats.length ? Math.round(branchStats.reduce(function(a,b){return a+b.rate;},0)/branchStats.length) : 0;
-  var okAll = branchStats.filter(function(b){ return b.missCount===0; }).length;
+  // ── Summary metrics (เฉพาะวันที่เลือก) ──
+  var total      = branchStats.length;
+  var sentToday  = branchStats.filter(function(b){ return b.submitted.has(todayStr); }).length;
+  var missToday  = total - sentToday;
+  var rateToday  = total > 0 ? (sentToday / total * 100).toFixed(1) : 0;
+  var streakAlert= branchStats.filter(function(b){ return b.streak>=3; }).length;
+  var neverSent  = branchStats.filter(function(b){ return b.lastSent===''; }).length;
 
   var el = function(id){ return document.getElementById(id); };
+
+  // progress bar + rate
+  if(el('mm-rate'))      el('mm-rate').textContent = rateToday+'%';
+  if(el('mm-rate-bar'))  el('mm-rate-bar').style.width = Math.min(rateToday,100)+'%';
+  if(el('mm-rate-bar')){
+    var bar=el('mm-rate-bar');
+    bar.style.background = rateToday>=80?'linear-gradient(90deg,#1a7045,#34d27a)':
+                           rateToday>=50?'linear-gradient(90deg,#3d6be0,#7fa3f0)':
+                                        'linear-gradient(90deg,#8b1a1a,#f87171)';
+  }
+  // label อัตราส่ง
+  var thM2=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var cd=new Date(todayStr+'T00:00:00');
+  if(el('mm-prog-label')) el('mm-prog-label').textContent='อัตราส่งยอด '+cd.getDate()+' '+thM2[cd.getMonth()];
+  if(el('mm-miss-today-label')) el('mm-miss-today-label').textContent='❌ ยังไม่ส่ง '+cd.getDate()+'/'+String(cd.getMonth()+1).padStart(2,'0');
+
+  // ตัวเลข 3 ช่อง
+  if(el('mm-ok'))         el('mm-ok').textContent = sentToday;
   if(el('mm-miss-today')) el('mm-miss-today').textContent = missToday;
+  if(el('mm-total'))      el('mm-total').textContent = total;
+
+  // การ์ดล่าง
   if(el('mm-streak'))     el('mm-streak').textContent = streakAlert;
-  if(el('mm-rate'))       el('mm-rate').textContent = avgRate+'%';
-  if(el('mm-ok'))         el('mm-ok').textContent = okAll;
+  if(el('mm-never'))      el('mm-never').textContent = neverSent;
 
   // ── Chain filter pills ──
   var pillWrap = el('mm-chain-pills');
@@ -2816,38 +2950,8 @@ function rm(){
   // shortDays — 14 วันย้อนหลังจากวันที่เลือก (ใช้ทั้ง heatmap และ chart)
   var shortDays = days.slice(-14);
 
-  // ── Heat map — เฉพาะสาขาที่ "ไม่ส่งวันที่เลือก" ──
-  var heatWrap = el('mm-heatmap');
-  if(heatWrap){
-    var missOnly = branchStats
-      .filter(function(b){ return !b.submitted.has(todayStr); })
-      .sort(function(a,b){ return b.streak - a.streak; })
-      .slice(0,20);
-    if(!missOnly.length){
-      heatWrap.innerHTML='<div style="text-align:center;padding:16px;color:var(--tx3);font-size:12px">🎉 ทุกสาขาส่งครบวันนี้</div>';
-    } else {
-      var html='<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%">';
-      html+='<tr><th style="font-size:10px;color:var(--tx3);text-align:left;padding:2px 4px 4px;min-width:80px;max-width:90px">สาขา</th>';
-      shortDays.forEach(function(d){
-        var dd=new Date(d+'T00:00:00');
-        var isCheck=(d===todayStr);
-        html+='<th style="font-size:9px;color:'+(isCheck?'#7fa3f0':'var(--tx3)')+';padding:2px 1px;min-width:20px;font-weight:'+(isCheck?700:400)+'">'+
-          (dd.getMonth()+1)+'/'+(dd.getDate())+'</th>';
-      });
-      html+='</tr>';
-      missOnly.forEach(function(b){
-        html+='<tr><td style="font-size:10px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;padding:2px 4px 2px 0">'+b.bn+'</td>';
-        shortDays.forEach(function(d){
-          var has=b.submitted.has(d);
-          var isCheck=(d===todayStr);
-          html+='<td style="padding:1px"><div class="hcell '+(has?'ok':'miss')+'" style="'+(isCheck?'outline:1px solid rgba(127,163,240,0.5);':'')+'">'+(has?'✓':'✗')+'</div></td>';
-        });
-        html+='</tr>';
-      });
-      html+='</table></div>';
-      heatWrap.innerHTML=html;
-    }
-  }
+  // ── Heat map ──
+  renderHeatmap(branchStats, shortDays, todayStr);
 
   // ── Alert list — เฉพาะสาขาที่ไม่ส่งวันที่เลือก ──
   var sort = el('mm-sort') ? el('mm-sort').value : 'streak';
