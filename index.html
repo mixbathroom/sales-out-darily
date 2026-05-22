@@ -875,6 +875,8 @@ function lsLogout() {
   // Reset state
   _lsMode = null; _lsChain = null; _lsBCode = null; _lsSupName = null;
   _pendingEntry = null;
+  _isSaving = false;
+  clearSessionTimer();
 
   // คืนหน้า entry กลับมา
   lsShowEntryPage();
@@ -951,6 +953,29 @@ var _lsChain = null;
 var _lsBCode = null;
 var _lsSupName = null;
 
+// ── Session Timeout ──────────────────────────────────────
+var _sessionTimer   = null;
+var _isSaving       = false;   // ป้องกัน double-save
+var PC_TIMEOUT_MS   = 30 * 60 * 1000;   // PC: 30 นาที
+var MGR_TIMEOUT_MS  = 2  * 60 * 60 * 1000; // Manager/Sup: 2 ชั่วโมง
+
+function resetSessionTimer(){
+  if(_sessionTimer) clearTimeout(_sessionTimer);
+  if(!_lsMode) return;
+  var ms = (_lsMode === 'pc') ? PC_TIMEOUT_MS : MGR_TIMEOUT_MS;
+  _sessionTimer = setTimeout(function(){
+    toast('⏰ Session หมดอายุ — กรุณาเข้าสู่ระบบใหม่', 'err');
+    setTimeout(lsLogout, 1800);
+  }, ms);
+}
+function clearSessionTimer(){
+  if(_sessionTimer){ clearTimeout(_sessionTimer); _sessionTimer=null; }
+}
+// รับ activity ทุก event หลัก
+['touchstart','mousedown','keydown','scroll'].forEach(function(ev){
+  document.addEventListener(ev, function(){ if(_lsMode) resetSessionTimer(); }, {passive:true});
+});
+
 function lsDoPC() {
   var code = (document.getElementById('ls-pc-code').value || '').trim();
   var err  = document.getElementById('ls-pc-err');
@@ -971,6 +996,7 @@ function lsDoPC() {
   _lsMode = 'pc';
   _lsChain = foundChain;
   _lsBCode = code;
+  resetSessionTimer();
 
   // ซ่อนหน้า login
   document.getElementById('login-screen').style.display = 'none';
@@ -1067,6 +1093,7 @@ function lsDoMgr() {
     document.getElementById('login-screen').style.display = 'none';
     var logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.style.display = '';
+    resetSessionTimer();
     lsOpenDashboard();
     return;
   }
@@ -1076,6 +1103,7 @@ function lsDoMgr() {
     _lsMode = 'supervisor';
     _lsSupName = SUP_ACCOUNTS[pwd];
     document.getElementById('login-screen').style.display = 'none';
+    resetSessionTimer();
     var logoutBtn2 = document.getElementById('logout-btn');
     if (logoutBtn2) logoutBtn2.style.display = '';
     // แสดง badge Supervisor
@@ -1983,16 +2011,19 @@ function closeSaveModal(){
 
 async function confirmSave(){
   if(!_pendingEntry) return;
+  if(_isSaving){ toast('⚠ กำลังบันทึกอยู่ กรุณารอสักครู่...','err'); return; }
   if(!window._fsAdd){
     toast('⚠ Firebase ยังไม่พร้อม รอสักครู่...', 'err');
     return;
   }
+  _isSaving = true;
   var entry=_pendingEntry;
   var btn=document.getElementById('btn-confirm-save');
   if(btn){ btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...'; }
 
   try {
     await window._fsAdd(entry);
+    _isSaving = false;
     _pendingEntry=null;
 
     // ล้างฟอร์ม
@@ -2012,6 +2043,7 @@ async function confirmSave(){
     showSaveSuccess(entry.bn, entry.ch);
 
   } catch(e) {
+    _isSaving = false;
     if(btn){ btn.disabled=false; btn.textContent='✓ ยืนยันบันทึก'; }
     console.error('Save error:', e);
     var code=(e&&e.code)?e.code:String(e);
@@ -2880,13 +2912,15 @@ function rm(){
     missLbl.textContent = 'ไม่ส่ง '+checkDate.getDate()+' '+thMonth2[checkDate.getMonth()]+' (สาขา)';
   }
 
-  // วันที่นับจาก checkDate — เริ่มจาก START_DATE เป็นต้นไปเท่านั้น
-  var START_DATE = '2026-05-19';
+  // วันที่นับจาก checkDate — START_DATE คือวันที่เก่าสุดใน SD (dynamic)
+  var START_DATE = SD.length > 0
+    ? SD.reduce(function(mn,e){ return (e.d && e.d < mn) ? e.d : mn; }, SD[0].d || fmt(checkDate))
+    : fmt(new Date(checkDate.getTime() - 29*24*60*60*1000));
   var days = [];
   for(var i=29;i>=0;i--){
     var d = new Date(checkDate); d.setDate(d.getDate()-i);
     var ds = fmt(d);
-    if(ds >= START_DATE) days.push(ds);  // ตัดวันก่อน 19 พ.ค. 2026 ทิ้ง
+    if(ds >= START_DATE) days.push(ds);
   }
   if(!days.length) days.push(fmt(checkDate)); // safety fallback
 
@@ -2985,11 +3019,19 @@ function rm(){
     }).join('');
   }
 
-  // ── PC SUP pills ──
+  // ── PC SUP pills — ดึงจาก BRANCHES เป็นหลัก (ครอบคลุมสาขาที่ยังไม่เคยส่ง) ──
   var supWrap = el('mm-sup-pills');
   if(supWrap){
-    // ดึง sup จาก SD เฉพาะที่ active (กรองตาม chain ที่เลือก)
     var supSet = new Set();
+    // 1) จาก BRANCHES (source of truth)
+    Object.keys(BRANCHES).forEach(function(chain){
+      if(_mmChain && chain !== _mmChain) return;
+      Object.keys(BRANCHES[chain]).forEach(function(bc){
+        var sup = BRANCHES[chain][bc][5];
+        if(sup) supSet.add(sup);
+      });
+    });
+    // 2) เสริมจาก SD (สำหรับ branch ที่ไม่มีใน BRANCHES)
     SD.forEach(function(e){
       if(_mmChain && e.ch!==_mmChain) return;
       if(e.ps) supSet.add(e.ps);
