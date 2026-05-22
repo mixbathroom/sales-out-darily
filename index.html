@@ -742,8 +742,7 @@ select option{background:var(--bg2);color:var(--tx)}
         </span>
       </div>
     </div>
-    <!-- Selected date display -->
-    <div id="mm-date-label" style="margin-top:8px;font-size:12px;color:var(--ac2);font-weight:600;text-align:center"></div>
+    <div id="mm-date-label" style="display:none"></div>
   </div>
 
   <!-- Summary metrics -->
@@ -755,22 +754,6 @@ select option{background:var(--bg2);color:var(--tx)}
     </div>
     <div style="background:rgba(255,255,255,0.07);border-radius:6px;height:10px;overflow:hidden;margin-bottom:10px">
       <div id="mm-rate-bar" style="height:10px;border-radius:6px;background:linear-gradient(90deg,#3d6be0,#34d27a);width:0%;transition:width .4s"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;text-align:center">
-      <div style="flex:1">
-        <div style="font-size:20px;font-weight:800;color:#34d27a" id="mm-ok">—</div>
-        <div style="font-size:10px;color:var(--tx3);margin-top:3px">✅ ส่งแล้ว</div>
-      </div>
-      <div style="width:.5px;background:var(--bd);margin:0 8px"></div>
-      <div style="flex:1">
-        <div style="font-size:20px;font-weight:800;color:#f87171" id="mm-miss-today">—</div>
-        <div style="font-size:10px;color:var(--tx3);margin-top:3px" id="mm-miss-today-label">❌ ยังไม่ส่ง</div>
-      </div>
-      <div style="width:.5px;background:var(--bd);margin:0 8px"></div>
-      <div style="flex:1">
-        <div style="font-size:20px;font-weight:800;color:#7fa3f0" id="mm-total">—</div>
-        <div style="font-size:10px;color:var(--tx3);margin-top:3px">🏪 ทั้งหมด</div>
-      </div>
     </div>
   </div>
 
@@ -785,36 +768,39 @@ select option{background:var(--bg2);color:var(--tx)}
     </div>
   </div>
 
-  <!-- Chain filter -->
-  <div style="margin-bottom:6px">
-    <div style="font-size:10px;color:var(--tx3);font-weight:600;margin-bottom:5px;letter-spacing:.5px">🏪 CHAIN</div>
-    <div class="miss-pill-row" id="mm-chain-pills"></div>
-  </div>
-
-  <!-- PC SUP filter -->
-  <div style="margin-bottom:12px">
-    <div style="font-size:10px;color:var(--tx3);font-weight:600;margin-bottom:5px;letter-spacing:.5px">👤 PC SUPERVISOR</div>
-    <div class="miss-pill-row" id="mm-sup-pills"></div>
+  <!-- Chain + Sup filter dropdowns -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+    <div>
+      <div style="font-size:10px;color:var(--tx3);font-weight:600;margin-bottom:5px;letter-spacing:.5px">🏪 CHAIN</div>
+      <select id="mm-chain-sel" onchange="mmSetChain(this.value)"
+        style="width:100%;padding:9px 10px;border-radius:10px;border:.5px solid var(--bd);background:var(--dk2);color:var(--tx1);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22><path d=%22M0 0l5 6 5-6z%22 fill=%22%238893b0%22/></svg>');background-repeat:no-repeat;background-position:right 10px center">
+        <option value="">🏪 ทั้งหมด</option>
+      </select>
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--tx3);font-weight:600;margin-bottom:5px;letter-spacing:.5px">👤 PC SUPERVISOR</div>
+      <select id="mm-sup-sel" onchange="mmSetSup(this.value)"
+        style="width:100%;padding:9px 10px;border-radius:10px;border:.5px solid var(--bd);background:var(--dk2);color:var(--tx1);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22><path d=%22M0 0l5 6 5-6z%22 fill=%22%238893b0%22/></svg>');background-repeat:no-repeat;background-position:right 10px center">
+        <option value="">👤 ทั้งหมด</option>
+      </select>
+    </div>
   </div>
 
   <!-- Heat map -->
-  <div class="dark-card" style="margin-bottom:12px;padding:12px 14px">
-    <div class="dark-card-title" style="margin-bottom:10px">🗓 Heat map การส่งยอด (4 วันล่าสุด)</div>
-    <!-- Toggle เรียงลำดับ (ไม่ซ่อนสาขา) -->
-    <div style="display:flex;gap:6px;margin-bottom:10px">
-      <button id="hm-btn-miss" onclick="mmSetHeatMode('miss')"
-        style="flex:1;padding:8px 4px;border-radius:10px;border:.5px solid rgba(248,113,113,0.5);background:rgba(248,113,113,0.18);color:#f87171;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
-        ❌ เรียง: ขาดส่งก่อน
-      </button>
-      <button id="hm-btn-sent" onclick="mmSetHeatMode('sent')"
-        style="flex:1;padding:8px 4px;border-radius:10px;border:.5px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#8893b0;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">
-        ✅ เรียง: ส่งแล้วก่อน
-      </button>
-    </div>
-    <!-- Legend -->
-    <div style="display:flex;gap:10px;font-size:10px;margin-bottom:8px">
-      <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(52,210,122,0.3);display:inline-block"></span>ส่งแล้ว</span>
-      <span style="display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(248,113,113,0.3);display:inline-block"></span>ไม่ส่ง</span>
+  <div class="dark-card" style="margin-bottom:12px;padding:8px 12px">
+    <!-- Header row: title + compact sort toggle -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:var(--tx2)">🗓 Heat map (4 วันล่าสุด)</div>
+      <div style="display:flex;background:rgba(255,255,255,0.05);border-radius:12px;padding:2px;gap:1px;border:.5px solid rgba(255,255,255,0.08)">
+        <button id="hm-btn-miss" onclick="mmSetHeatMode('miss')"
+          style="padding:2px 8px;border-radius:10px;border:none;background:rgba(248,113,113,0.25);color:#f87171;font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">
+          ❌ ขาด
+        </button>
+        <button id="hm-btn-sent" onclick="mmSetHeatMode('sent')"
+          style="padding:2px 8px;border-radius:10px;border:none;background:transparent;color:#8893b0;font-size:9px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">
+          ✅ ส่ง
+        </button>
+      </div>
     </div>
     <div class="heat-wrap">
       <div id="mm-heatmap">
@@ -823,19 +809,7 @@ select option{background:var(--bg2);color:var(--tx)}
     </div>
   </div>
 
-  <!-- Alert list -->
-  <div class="dark-card" style="margin-bottom:12px;padding:12px 14px">
-    <div class="dark-card-title" style="margin-bottom:10px">⚠️ สาขาที่น่าเป็นห่วง
-      <span style="margin-left:auto">
-        <select id="mm-sort" onchange="rm()" style="font-size:10px;padding:3px 8px;background:var(--dk2);color:var(--tx2);border:.5px solid var(--bd);border-radius:8px">
-          <option value="streak">ขาดต่อเนื่องมากสุด</option>
-          <option value="total">ขาดรวมมากสุด</option>
-          <option value="recent">ไม่ส่งล่าสุด</option>
-        </select>
-      </span>
-    </div>
-    <div id="mm-alert-list"></div>
-  </div>
+
 
   <!-- Daily rate chart -->
   <div class="dark-card" style="margin-bottom:12px;padding:12px 14px">
@@ -852,11 +826,11 @@ select option{background:var(--bg2);color:var(--tx)}
 </div><!-- end overview-modal -->
 
 <!-- Branch detail modal overlay -->
-  <div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;align-items:flex-end;justify-content:center" onclick="closeModal(event)">
-    <div id="modal-box" style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:430px;max-height:85vh;overflow-y:auto;padding:20px 16px 40px">
+  <div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:flex-end;justify-content:center" onclick="closeModal(event)">
+    <div id="modal-box" style="background:var(--dk2);border-radius:16px 16px 0 0;width:100%;max-width:430px;max-height:85vh;overflow-y:auto;padding:20px 16px 40px;border-top:.5px solid rgba(255,255,255,0.1)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div style="font-size:15px;font-weight:700" id="modal-title">-</div>
-        <button onclick="closeModal()" style="background:var(--bg);border:none;border-radius:50%;width:30px;height:30px;font-size:18px;cursor:pointer;color:var(--tx2)">×</button>
+        <div style="font-size:15px;font-weight:700;color:var(--tx1)" id="modal-title">-</div>
+        <button onclick="closeModal()" style="background:rgba(255,255,255,0.07);border:none;border-radius:50%;width:30px;height:30px;font-size:18px;cursor:pointer;color:var(--tx2)">×</button>
       </div>
       <div id="modal-body"></div>
     </div>
@@ -2038,11 +2012,11 @@ async function confirmSave(){
     BRANDS.forEach(function(b){ var el=document.getElementById('b'+b); if(el) el.value=''; });
     var begerEl=document.getElementById('bBeger'); if(begerEl){ begerEl.value=''; begerEl.style.borderColor='rgba(52,210,122,0.3)'; }
     var bd=document.getElementById('beger-display'); if(bd) bd.textContent='0';
-    document.getElementById('ipc').value='';
-    document.getElementById('ipcpromo').value='';
+    var ipc=document.getElementById('ipc'); if(ipc) ipc.value='';
+    var ipcpromo=document.getElementById('ipcpromo'); if(ipcpromo) ipcpromo.value='';
     var t1=document.getElementById('tprev'); var t2=document.getElementById('tprev2');
     if(t1) t1.textContent='0'; if(t2) t2.textContent='0';
-    document.getElementById('sc').value='';
+    var _sc=document.getElementById('sc'); if(_sc&&_lsMode!=='pc') _sc.value='';
     document.getElementById('sb').innerHTML='<option value="">-- เลือกสาขา --</option>';
     document.getElementById('branch-info').style.display='none';
     var hint=document.getElementById('pc-autofill-hint'); if(hint) hint.style.display='none';
@@ -2078,10 +2052,20 @@ function showSaveSuccess(branchName, chainName){
 
   overlay.style.display='flex';
 
-  // แตะที่ใดก็ logout
-  setTimeout(function(){
-    m.addEventListener('click', lsLogout, { once: true });
-  }, 800);
+  // PC mode: แตะที่ใดก็ logout (Manager ไม่ logout)
+  if(_lsMode === 'pc'){
+    setTimeout(function(){
+      m.addEventListener('click', lsLogout, { once: true });
+    }, 800);
+  } else {
+    // Manager/Supervisor: ปิด overlay แทน logout
+    setTimeout(function(){
+      m.addEventListener('click', function(){
+        var ov=document.getElementById('sm-success');
+        if(ov) ov.style.display='none';
+      }, { once: true });
+    }, 800);
+  }
 }
 
 function renderList(){
@@ -2089,23 +2073,32 @@ function renderList(){
 }
 
 
-function delE(i){
-  if(!confirm('ลบรายการนี้?'))return;
-  var rec=SD.slice().reverse()[i];
-  if(rec&&rec._id){ delFromDB(rec._id); toast('ลบแล้ว'); }
-}
-
 // ── Dashboard ─────────────────────────────────────────
 var cS=null,cD=null,cW=null,cP=null,cTr=null,cChain=null;
 
 // ── MTD helper: คืน entry ล่าสุดต่อสาขา (data model = ยอดสะสม MTD) ──
-// ใช้แทน data โดยตรงเมื่อต้องการ "ยอดรวม MTD" ที่ถูกต้อง
 function latestMTD(entries){
   var map={};
   entries.forEach(function(e){
     if(!map[e.bc]||e.d>map[e.bc].d) map[e.bc]=e;
   });
   return Object.values(map);
+}
+
+// ── Brand/MS% helper: ใช้ entry ที่มีข้อมูลคู่แข่ง (วันเสาร์) ล่าสุด ──
+// ป้องกัน MS% = 100% เมื่อ latest entry เป็นวันธรรมดา (ไม่มีคู่แข่ง)
+function latestWithBrands(entries){
+  var satMap={}, anyMap={};
+  entries.forEach(function(e){
+    // entry ที่มีมากกว่า 1 แบรนด์ = วันเสาร์ที่กรอกคู่แข่ง
+    var hasComp=e.br&&Object.keys(e.br).length>1;
+    if(hasComp&&(!satMap[e.bc]||e.d>satMap[e.bc].d)) satMap[e.bc]=e;
+    if(!anyMap[e.bc]||e.d>anyMap[e.bc].d) anyMap[e.bc]=e;
+  });
+  // ใช้ entry เสาร์ถ้ามี, fallback เป็น entry ล่าสุด
+  return Object.keys(anyMap).map(function(bc){
+    return satMap[bc]||anyMap[bc];
+  });
 }
 
 function getF(){
@@ -2224,8 +2217,8 @@ function rd(){
   renderPeriodCards(p1,p2,p3,maxP);
 
   var bt={};BRANDS.forEach(function(b){bt[b]=0;});
-  // MTD: ใช้ entry ล่าสุดต่อสาขา
-  mtdData.forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(bt[b]!==undefined)bt[b]+=e.br[b];});});
+  // ใช้ latestWithBrands (วันเสาร์) สำหรับ MS% — ป้องกัน Beger 100%
+  latestWithBrands(data).forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(bt[b]!==undefined)bt[b]+=e.br[b];});});
   var ab=BRANDS.filter(function(b){return bt[b]>0;}).sort(function(a,b){return bt[b]-bt[a];});
 
   var _rdRetry=(rd._retry||0);
@@ -2394,11 +2387,16 @@ function rd(){
   });
 
   // ── Day of week bar (NEW UI) ──────────────────────────
+  // DoW: ใช้ latestMTD และป้องกัน Infinity เมื่อ data ว่าง
   var dT=[0,0,0,0,0,0,0],dC=[0,0,0,0,0,0,0];
-  data.forEach(function(e){var dw=new Date(e.d).getDay();var idx=dw===0?6:dw-1;dT[idx]+=(e.br&&e.br['Beger'])||0;dC[idx]++;});
+  latestMTD(data).forEach(function(e){
+    var dw=new Date(e.d).getDay();var idx=dw===0?6:dw-1;
+    dT[idx]+=(e.br&&e.br['Beger'])||0;dC[idx]++;
+  });
   var dA=dT.map(function(t,i){return dC[i]>0?Math.round(t/dC[i]):0;});
-  var maxDow=Math.max.apply(null,dA);
-  var minDow=Math.min.apply(null,dA.filter(function(v){return v>0;}));
+  var maxDow=Math.max.apply(null,dA)||0;
+  var posVals=dA.filter(function(v){return v>0;});
+  var minDow=posVals.length?Math.min.apply(null,posVals):0; // ป้องกัน Infinity
   renderDowBars(dA,maxDow,minDow);
 
   // ── Chain comparison horizontal bar (Beger only) ──────
@@ -2406,23 +2404,29 @@ function rd(){
   var chData={};
   CHAINS.forEach(function(c){chData[c]={s:0,t:0,tot:0,days:new Set()};});
   // MTD: ใช้ latestMTD ต่อสาขา
+  // ยอด Beger MTD: latestMTD | MS% tot: latestWithBrands
+  var lwb=latestWithBrands(data);
+  var lwbMap={};lwb.forEach(function(e){lwbMap[e.bc]=e;});
   latestMTD(data).forEach(function(e){
     if(chData[e.ch]){
       var begerSales=(e.br&&e.br['Beger'])?e.br['Beger']:0;
       chData[e.ch].s+=begerSales;
       chData[e.ch].t+=e.tg;
       chData[e.ch].days.add(e.d);
-      if(e.br){Object.values(e.br).forEach(function(v){chData[e.ch].tot+=v;});}
+      // ใช้ entry เสาร์สำหรับ tot (MS%)
+      var msEntry=lwbMap[e.bc]||e;
+      if(msEntry.br){Object.values(msEntry.br).forEach(function(v){chData[e.ch].tot+=v;});}
     }
   });
-  var activeCh=CHAINS.filter(function(c){return chData[c]!==undefined;});
+  var activeCh=CHAINS.filter(function(c){return chData[c]&&chData[c].days.size>0;});
 
   // compute forecast per chain: avg/day * จำนวนวันจริงของเดือน
-  var chainRefDate=data.length?new Date(data[0].d):new Date();
+  // FIX: ใช้ chainMaxDate เป็น reference ก่อน (ไม่ใช้ data[0])
+  var chainMaxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
+  var chainRefDate=chainMaxDate;
   var chainMoFilter=document.getElementById('fm').value;
   var chainMonth=chainMoFilter!==''?parseInt(chainMoFilter):chainRefDate.getMonth();
   var chainDaysInMonth=new Date(chainRefDate.getFullYear(),chainMonth+1,0).getDate();
-  var chainMaxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
   var chainDaysPassed=chainMaxDate.getDate();
   activeCh.forEach(function(c){
     var d=chData[c];
@@ -2815,13 +2819,14 @@ function mmSetHeatMode(mode){
   _mmHeatMode = mode;
   var btnM = document.getElementById('hm-btn-miss');
   var btnS = document.getElementById('hm-btn-sent');
-  var onStyle  = function(col,bg){ return 'flex:1;padding:8px 4px;border-radius:10px;border:.5px solid '+col+';background:'+bg+';font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;'; };
+  // style คงขนาดเดิม (เล็ก) ไม่ขยายตอนกด
+  var base = 'padding:2px 8px;border-radius:10px;border:none;font-size:9px;cursor:pointer;font-family:inherit;white-space:nowrap;';
   if(mode==='miss'){
-    if(btnM){ btnM.style.cssText=onStyle('rgba(248,113,113,0.5)','rgba(248,113,113,0.18)'); btnM.style.color='#f87171'; }
-    if(btnS){ btnS.style.cssText=onStyle('rgba(255,255,255,0.1)','rgba(255,255,255,0.04)'); btnS.style.color='#8893b0'; }
+    if(btnM){ btnM.style.cssText=base+'background:rgba(248,113,113,0.25);color:#f87171;font-weight:700;'; }
+    if(btnS){ btnS.style.cssText=base+'background:transparent;color:#8893b0;font-weight:600;'; }
   } else {
-    if(btnM){ btnM.style.cssText=onStyle('rgba(255,255,255,0.1)','rgba(255,255,255,0.04)'); btnM.style.color='#8893b0'; }
-    if(btnS){ btnS.style.cssText=onStyle('rgba(52,210,122,0.5)','rgba(52,210,122,0.18)'); btnS.style.color='#34d27a'; }
+    if(btnM){ btnM.style.cssText=base+'background:transparent;color:#8893b0;font-weight:600;'; }
+    if(btnS){ btnS.style.cssText=base+'background:rgba(52,210,122,0.2);color:#34d27a;font-weight:700;'; }
   }
   renderHeatmap(_branchStatsCache, _shortDaysCache, _todayStrCache);
 }
@@ -2858,21 +2863,95 @@ function renderHeatmap(branchStats, shortDays, todayStr){
   }
 
   // สรุปตัวเลข (วันที่เลือก)
+
+  // chain badge color map
+  // chain → [abbr, color]
+  var CHAIN_BADGE_MAP={
+    'DoHome':        ['DH',    '#f97316'],
+    'DoHome Togo':   ['DH+',   '#fb923c'],
+    'Homepro':       ['HP',    '#22c55e'],
+    'HomePro':       ['HP',    '#22c55e'],
+    'Thai Watsadu':  ['TWD',   '#3b82f6'],
+    'Global House':  ['GH',    '#a855f7'],
+    'Megahome':      ['MH',    '#ec4899'],
+    'HomeHub':       ['HH',    '#14b8a6'],
+    'บุญถาวร':       ['บุญถ.', '#eab308'],
+    'ฮาร์ดแวร์เฮ้าส์':['HW',  '#64748b'],
+    'โฮมบุญ':        ['HB',    '#06b6d4'],
+    'โฮมเพ้นท์':     ['HP',    '#c084fc'],  // HP สีม่วง ≠ HomePro สีเขียว
+    'ศิริมหาชัย':    ['ศิริ',  '#f43f5e'],
+    'Homeshop':      ['HS',    '#10b981']
+  };
+  function chainBadge(ch){
+    var entry=CHAIN_BADGE_MAP[ch]||[ch.slice(0,3),'#7fa3f0'];
+    var abbr=entry[0], col=entry[1];
+    return '<span style="display:inline-block;background:'+col+'22;color:'+col+';font-size:8px;font-weight:700;padding:1px 4px;border-radius:4px;border:.5px solid '+col+'44;margin-right:4px;flex-shrink:0">'+abbr+'</span>';
+  }
+
+  // ย่อชื่อสาขา — ตัดทั้งคำกฎหมาย + ชื่อ chain ออก เหลือเฉพาะชื่อสาขา
+  function shortBN(bn){
+    return bn
+      .replace(/^บริษัท\s+/,'')
+      .replace(/^ห้างหุ้นส่วนจำกัด\s+/,'')
+      .replace(/^หจก\.\s*/,'')
+      // ตัดชื่อ chain ออก (badge แสดงแทน)
+      .replace(/โฮมเพ้นท์(\s+โปรดักส์)?/g,'')
+      .replace(/โฮมโปร(\s+โปรดักส์)?/g,'')
+      .replace(/HomePro(\s+Products)?/g,'')
+      .replace(/Homepro/g,'')
+      .replace(/โฮมบุญ/g,'')
+      .replace(/ไทย\s*วัสดุ/g,'')
+      .replace(/Thai\s*Watsadu/g,'')
+      .replace(/โกลบอล\s*เฮ้าส์/g,'')
+      .replace(/Global\s*House/g,'')
+      .replace(/เมกาโฮม/g,'').replace(/Megahome/g,'')
+      .replace(/ฮาร์ดแวร์\s*เฮ้าส์/g,'')
+      .replace(/DoHome\s+Togo/g,'').replace(/DoHome/g,'')
+      .replace(/DH/g,'').replace(/HP/g,'')
+      .replace(/TWD/g,'').replace(/SGH/g,'')
+      .replace(/GH/g,'').replace(/MH/g,'')
+      // ตัดคำลงท้ายกฎหมาย
+      .replace(/\s*จำกัด\s*\(มหาชน\)/g,'')
+      .replace(/\s*จำกัด/g,'')
+      .replace(/\s*\(มหาชน\)/g,'')
+      // ตัด "สาขา"
+      .replace(/\s*[-–]\s*สาขา\s*/g,' ')
+      .replace(/สาขา/g,'')
+      .replace(/\s+/g,' ').trim();
+  }
+
   var sentToday = branchStats.filter(function(b){ return b.submitted.has(todayStr); }).length;
   var missToday = branchStats.length - sentToday;
+  var sentPct  = branchStats.length > 0 ? Math.round(sentToday/branchStats.length*100) : 0;
+  var missPct  = branchStats.length > 0 ? Math.round(missToday/branchStats.length*100) : 0;
   var html =
-    '<div style="display:flex;gap:8px;margin-bottom:8px">' +
-      '<div style="flex:1;background:rgba(52,210,122,0.1);border-radius:8px;padding:6px 8px;text-align:center;border:.5px solid rgba(52,210,122,0.2)">' +
-        '<div style="font-size:16px;font-weight:700;color:#34d27a">'+sentToday+'</div>' +
-        '<div style="font-size:9px;color:var(--tx3)">ส่งแล้ว</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">' +
+      // card ส่งแล้ว
+      '<div style="background:rgba(52,210,122,0.1);border-radius:12px;padding:10px 8px;text-align:center;border:.5px solid rgba(52,210,122,0.25)">' +
+        '<div style="display:flex;align-items:baseline;justify-content:center;gap:3px">' +
+          '<span style="font-size:26px;font-weight:800;color:#34d27a;line-height:1">'+sentToday+'</span>' +
+          '<span style="font-size:9px;color:#34d27a;opacity:.6;font-weight:600">สาขา</span>' +
+        '</div>' +
+        '<div style="font-size:13px;font-weight:700;color:#34d27a;opacity:.8;margin-top:2px">'+sentPct+'%</div>' +
+        '<div style="font-size:9px;color:#34d27a;opacity:.5;margin-top:1px;font-weight:500">✅ ส่งแล้ว</div>' +
       '</div>' +
-      '<div style="flex:1;background:rgba(248,113,113,0.1);border-radius:8px;padding:6px 8px;text-align:center;border:.5px solid rgba(248,113,113,0.2)">' +
-        '<div style="font-size:16px;font-weight:700;color:#f87171">'+missToday+'</div>' +
-        '<div style="font-size:9px;color:var(--tx3)">ยังไม่ส่ง</div>' +
+      // card ยังไม่ส่ง
+      '<div style="background:rgba(248,113,113,0.1);border-radius:12px;padding:10px 8px;text-align:center;border:.5px solid rgba(248,113,113,0.25)">' +
+        '<div style="display:flex;align-items:baseline;justify-content:center;gap:3px">' +
+          '<span style="font-size:26px;font-weight:800;color:#f87171;line-height:1">'+missToday+'</span>' +
+          '<span style="font-size:9px;color:#f87171;opacity:.6;font-weight:600">สาขา</span>' +
+        '</div>' +
+        '<div style="font-size:13px;font-weight:700;color:#f87171;opacity:.8;margin-top:2px">'+missPct+'%</div>' +
+        '<div style="font-size:9px;color:#f87171;opacity:.5;margin-top:1px;font-weight:500">❌ ยังไม่ส่ง</div>' +
       '</div>' +
-      '<div style="flex:1;background:rgba(127,163,240,0.1);border-radius:8px;padding:6px 8px;text-align:center;border:.5px solid rgba(127,163,240,0.2)">' +
-        '<div style="font-size:16px;font-weight:700;color:#7fa3f0">'+branchStats.length+'</div>' +
-        '<div style="font-size:9px;color:var(--tx3)">ทั้งหมด</div>' +
+      // card ทั้งหมด
+      '<div style="background:rgba(127,163,240,0.1);border-radius:12px;padding:10px 8px;text-align:center;border:.5px solid rgba(127,163,240,0.25)">' +
+        '<div style="display:flex;align-items:baseline;justify-content:center;gap:3px">' +
+          '<span style="font-size:26px;font-weight:800;color:#7fa3f0;line-height:1">'+branchStats.length+'</span>' +
+          '<span style="font-size:9px;color:#7fa3f0;opacity:.6;font-weight:600">สาขา</span>' +
+        '</div>' +
+        '<div style="font-size:13px;font-weight:700;color:#7fa3f0;opacity:.8;margin-top:2px">100%</div>' +
+        '<div style="font-size:9px;color:#7fa3f0;opacity:.5;margin-top:1px;font-weight:500">🏪 ทั้งหมด</div>' +
       '</div>' +
     '</div>';
 
@@ -2890,11 +2969,13 @@ function renderHeatmap(branchStats, shortDays, todayStr){
   sorted.forEach(function(b, idx){
     var isMiss = !b.submitted.has(todayStr);
     html+='<tr style="'+(isMiss?'background:rgba(248,113,113,0.04);':'')+'">';
-    html+='<td style="font-size:10px;color:'+(isMiss?'#f87171':'#6ee7b7')+
-          ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;padding:2px 4px 2px 0;font-weight:'+(isMiss?600:400)+
-          '" title="'+b.bn+' ('+b.ch+')">' +
-          '<span style="font-size:9px;color:rgba(255,255,255,0.2);font-weight:400;margin-right:4px;font-variant-numeric:tabular-nums">'+(idx+1)+'.</span>' +
-          b.bn+'</td>';
+    html+='<td style="padding:2px 4px 2px 0;max-width:120px">' +
+          '<div style="display:flex;align-items:center;gap:2px">' +
+          '<span style="font-size:9px;color:rgba(255,255,255,0.2);font-weight:400;flex-shrink:0;font-variant-numeric:tabular-nums">'+(idx+1)+'.</span>' +
+          chainBadge(b.ch) +
+          '<span style="font-size:10px;color:'+(isMiss?'#f87171':'#6ee7b7')+';font-weight:'+(isMiss?600:400)+
+          ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+b.bn+'">'+shortBN(b.bn)+'</span>' +
+          '</div></td>';
     shortDays.forEach(function(d){
       var has = b.submitted.has(d);
       var isCheck=(d===todayStr);
@@ -3073,40 +3154,35 @@ function rm(){
   if(el('mm-streak'))     el('mm-streak').textContent = streakAlert;
   if(el('mm-never'))      el('mm-never').textContent = neverSent;
 
-  // ── Chain filter pills ──
-  var pillWrap = el('mm-chain-pills');
-  if(pillWrap){
+  // ── Chain dropdown ──
+  var chainSel = el('mm-chain-sel');
+  if(chainSel){
     var chains = Object.keys(BRANCHES);
-    pillWrap.innerHTML = [''].concat(chains).map(function(c){
-      var label = c===''?'ทั้งหมด':c;
-      var on = _mmChain===c;
-      return '<div class="miss-pill'+(on?' on':'')+'" onclick="mmSetChain(\''+c+'\')">'+label+'</div>';
-    }).join('');
+    var cHtml = '<option value="">🏪 ทั้งหมด</option>';
+    chains.forEach(function(c){ cHtml += '<option value="'+c+'"'+(c===_mmChain?' selected':'')+'>'+c+'</option>'; });
+    chainSel.innerHTML = cHtml;
+    chainSel.value = _mmChain || '';
   }
 
-  // ── PC SUP pills — ดึงจาก BRANCHES เป็นหลัก (ครอบคลุมสาขาที่ยังไม่เคยส่ง) ──
-  var supWrap = el('mm-sup-pills');
-  if(supWrap){
+  // ── Sup dropdown — ดึงจาก BRANCHES เป็นหลัก ──
+  var supSel = el('mm-sup-sel');
+  if(supSel){
     var supSet = new Set();
-    // 1) จาก BRANCHES (source of truth)
     Object.keys(BRANCHES).forEach(function(chain){
       if(_mmChain && chain !== _mmChain) return;
       Object.keys(BRANCHES[chain]).forEach(function(bc){
-        var sup = BRANCHES[chain][bc][5];
-        if(sup) supSet.add(sup);
+        var sup = BRANCHES[chain][bc][5]; if(sup) supSet.add(sup);
       });
     });
-    // 2) เสริมจาก SD (สำหรับ branch ที่ไม่มีใน BRANCHES)
     SD.forEach(function(e){
       if(_mmChain && e.ch!==_mmChain) return;
       if(e.ps) supSet.add(e.ps);
     });
     var sups = Array.from(supSet).sort();
-    supWrap.innerHTML = [''].concat(sups).map(function(s){
-      var label = s===''?'ทั้งหมด':s.replace(/^คุณ/,'');
-      var on = _mmSup===s;
-      return '<div class="miss-pill'+(on?' on':'')+'" onclick="mmSetSup(\''+s.replace(/'/g,"\\'")+'\')">'+'👤 '+label+'</div>';
-    }).join('');
+    var sHtml = '<option value="">👤 ทั้งหมด</option>';
+    sups.forEach(function(s){ sHtml += '<option value="'+s+'"'+(s===_mmSup?' selected':'')+'>'+s.replace(/^คุณ/,'')+'</option>'; });
+    supSel.innerHTML = sHtml;
+    supSel.value = _mmSup || '';
   }
 
   // shortDays — 4 วันย้อนหลังจากวันที่เลือก (ใช้ทั้ง heatmap และ chart)
@@ -3204,7 +3280,13 @@ function rt(){
   // populate PC Sup filter
   var tpsSel=document.getElementById('tps');
   var curPs=tpsSel.value;
-  var allPs=[...new Set(SD.map(function(e){return e.ps||'';}).filter(Boolean))].sort();
+  // FIX: ดึงจาก BRANCHES ก่อน เสริมด้วย SD
+  var psSet=new Set();
+  Object.keys(BRANCHES).forEach(function(chain){
+    Object.keys(BRANCHES[chain]).forEach(function(bc){var s=BRANCHES[chain][bc][5];if(s)psSet.add(s);});
+  });
+  SD.forEach(function(e){if(e.ps)psSet.add(e.ps);});
+  var allPs=[...psSet].sort();
   tpsSel.innerHTML='<option value="">ทั้งหมด</option>';
   allPs.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;if(n===curPs)o.selected=true;tpsSel.appendChild(o);});
 
@@ -3236,18 +3318,18 @@ function rt(){
   var achAll=tgtAll>0?(totAll/tgtAll*100):0;
   var above=rows.filter(function(r){return r.tg>0&&(r.br['Beger']||0)/r.tg>=1;}).length;
   var tmVal=document.getElementById('tm').value;
-  var refForDate=data.length?new Date(data[0].d):new Date();
+  // FIX: ใช้ maxDateAll เป็น reference (occurrence ที่ 3 — rt())
+  var maxDateAll=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
+  var refForDate=maxDateAll;
   var foreMonth=tmVal!==''?parseInt(tmVal):refForDate.getMonth();
   var foreDaysInMonth=new Date(refForDate.getFullYear(),foreMonth+1,0).getDate();
-  // หาวันที่ล่าสุดในข้อมูลเพื่อใช้เป็นตัวหาร (วันที่ผ่านมาจริงในเดือน)
-  var maxDateAll=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
   var daysPassedAll=maxDateAll.getDate();
   var foreAll=rows.reduce(function(a,r){return a+((r.br['Beger']||0)/daysPassedAll*foreDaysInMonth);},0);
   var forePctAll=tgtAll>0?(foreAll/tgtAll*100):0;
   var foreCol=forePctAll>=100?'#4ade80':forePctAll>=70?'#fbbf24':'#f87171';
   // Brand MS% — top brand by share
   var btAll={};BRANDS.forEach(function(b){btAll[b]=0;});
-  latestMTD(data).forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(btAll[b]!==undefined)btAll[b]+=e.br[b];});});
+  latestWithBrands(data).forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(btAll[b]!==undefined)btAll[b]+=e.br[b];});});
   var abAll=BRANDS.filter(function(b){return btAll[b]>0;}).sort(function(a,b){return btAll[b]-btAll[a];});
   var topBrand=abAll.length?abAll[0]:'';
   var btAllTotal=Object.values(btAll).reduce(function(a,v){return a+v;},0); // ยอดรวมทุกแบรนด์สำหรับ MS%
@@ -3286,12 +3368,14 @@ function rt(){
     // คาดการณ์ใช้วันที่ผ่านมาจริงในเดือน (max date) ไม่ใช่ unique วันของสาขา
     var avgDay=begerSales/daysPassedAll;
     var tmFilter=document.getElementById('tm').value;
-    var rRefDate=r.days.size?new Date([...r.days][0]):new Date();
-    var rMonth=tmFilter!==''?parseInt(tmFilter):rRefDate.getMonth();
-    var rDaysInMonth=new Date(rRefDate.getFullYear(),rMonth+1,0).getDate();
+    // ใช้ maxDateAll (already computed) แทน [...r.days][0] ที่ไม่รับประกัน order
+    var rMonth=tmFilter!==''?parseInt(tmFilter):maxDateAll.getMonth();
+    var rDaysInMonth=new Date(maxDateAll.getFullYear(),rMonth+1,0).getDate();
     var fore=avgDay*rDaysInMonth;
     var forePct=r.tg>0?(fore/r.tg*100):0;
-    var begerMs=r.tot>0&&begerSales?(begerSales/r.tot*100):0; // MS% ใช้ r.tot (ทุกแบรนด์) ถูกต้องอยู่แล้ว
+    // MS%: ใช้ผลรวมจาก r.br (entry เสาร์ล่าสุด) ไม่ใช่ r.tot (อาจเป็นวันธรรมดา)
+    var brTotal=Object.values(r.br).reduce(function(a,v){return a+v;},0);
+    var begerMs=brTotal>0&&begerSales?(begerSales/brTotal*100):0;
     var msCls=begerMs>=40?'#4ade80':begerMs>=25?'#fbbf24':'#f87171';
     var cls=pct>=100?'hi':pct>=70?'md':'lo';
     var fcls=forePct>=100?'#4ade80':forePct>=70?'#fbbf24':'#f87171';
@@ -4083,11 +4167,8 @@ function updateTitle(){
       <div id="sm-ms"></div>
     </div>
 
-    <!-- Brand breakdown -->
-    <div style="background:var(--dk3);border-radius:10px;padding:12px 14px;margin-bottom:16px">
-      <div style="color:var(--ac3);font-size:10px;font-weight:600;margin-bottom:8px">🎨 ยอดขายแยกแบรนด์</div>
-      <div id="sm-brands"></div>
-    </div>
+    <!-- Brand breakdown (ซ่อน — Market Share แสดงอยู่แล้ว) -->
+    <div style="display:none"><div id="sm-brands"></div></div>
 
     <!-- Alert banner -->
     <div id="sm-alert" style="display:none;border-radius:12px;padding:12px 14px;margin-bottom:12px;text-align:center"></div>
