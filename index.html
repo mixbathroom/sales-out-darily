@@ -255,7 +255,7 @@ select option{background:var(--bg2);color:var(--tx)}
     <div class="ls-panel pc">
       <div class="ls-ico">🏪</div>
       <div class="ls-ptitle">PC<br>ประจำสาขา</div>
-      <div class="ls-psub">กรอกรหัสสาขา<br>บันทึกยอดขายประจำวัน</div>
+      <div class="ls-psub">กรอกรหัสสาขา<br>บันทึก<strong>ยอดสะสม MTD</strong></div>
       <div class="ls-divider"></div>
       <input type="text" inputmode="numeric" class="ls-inp" id="ls-pc-code"
         placeholder="รหัสสาขา" maxlength="10" autocomplete="off"
@@ -397,7 +397,7 @@ select option{background:var(--bg2);color:var(--tx)}
     <div style="margin-bottom:14px">
       <div style="font-size:11px;color:#7fa3f0;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px">
         <span style="width:10px;height:10px;border-radius:3px;background:#34d27a;display:inline-block"></span>
-        ยอด Beger วันนี้ (บาท)
+        ยอด Beger สะสม MTD (บาท)
       </div>
       <div style="position:relative">
         <input type="text" inputmode="numeric" autocomplete="off" id="bBeger"
@@ -405,7 +405,9 @@ select option{background:var(--bg2);color:var(--tx)}
           oninput="fmtInput(this)"
           style="width:100%;font-size:32px;font-weight:800;text-align:center;padding:20px 15px;letter-spacing:1px;color:#34d27a;background:var(--inp);border:1.5px solid rgba(52,210,122,0.3);border-radius:var(--rs)">
         <div style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--tx3);font-weight:500;pointer-events:none">฿</div>
+        <div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(52,210,122,0.15);border:.5px solid rgba(52,210,122,0.3);border-radius:6px;padding:3px 7px;font-size:9px;font-weight:700;color:#34d27a;letter-spacing:.5px;pointer-events:none">MTD</div>
       </div>
+      <div style="text-align:center;font-size:10px;color:var(--tx3);margin-top:5px">⚠️ กรอกยอด<strong style="color:#f87171">สะสมตั้งแต่ต้นเดือน</strong> ถึงวันที่เลือก</div>
     </div>
 
     <!-- PC row -->
@@ -423,7 +425,7 @@ select option{background:var(--bg2);color:var(--tx)}
   </div>
 
   <div class="card">
-    <div class="sec">🎨 ยอดขายแบรนด์อื่น (บาท)</div>
+    <div class="sec" id="comp-sec-hdr">🎨 ยอดขายแบรนด์อื่น สะสม MTD (บาท)</div>
     <!-- hidden tprev for JS compat -->
     <span id="tprev" style="display:none">0</span>
     <div class="bg" id="bi">
@@ -964,6 +966,7 @@ function resetSessionTimer(){
   if(!_lsMode) return;
   var ms = (_lsMode === 'pc') ? PC_TIMEOUT_MS : MGR_TIMEOUT_MS;
   _sessionTimer = setTimeout(function(){
+    _lsMode = null; // ล็อก activity ไม่ให้รีเซ็ต timer อีก (ก่อน delay)
     toast('⏰ Session หมดอายุ — กรุณาเข้าสู่ระบบใหม่', 'err');
     setTimeout(lsLogout, 1800);
   }, ms);
@@ -1029,7 +1032,6 @@ function lsDoPC() {
     var sb = document.getElementById('sb');
     if (sb) {
       sb.value = code;
-      if (typeof onBranchChange === 'function') onBranchChange();
       // Lock selectors
       sc.disabled = true;
       sb.disabled = true;
@@ -1848,7 +1850,9 @@ function saveE(){
   var bm=getBranch(ch,bc);
   if(!bm){ toast('⚠ ไม่พบข้อมูลสาขา', 'err'); return; }
 
-  // ── ตรวจสอบว่ากรอกครบทุกช่อง (ถ้าไม่มียอดต้องใส่ 0) ──
+  // ── ตรวจสอบว่ากรอกครบ ──
+  // บังคับกรอกแบรนด์คู่แข่งเฉพาะวันเสาร์ (day===6)
+  var isSaturday = new Date(d+'T00:00:00').getDay()===6;
   var emptyFields=[];
   var begerEl=document.getElementById('bBeger');
   if(!begerEl||begerEl.value.trim()===''){
@@ -1860,17 +1864,24 @@ function saveE(){
   var COMP_BRANDS=BRANDS.filter(function(b){return b!=='Beger';});
   COMP_BRANDS.forEach(function(b){
     var el=document.getElementById('b'+b);
-    if(!el||el.value.trim()===''){
-      emptyFields.push(b);
-      if(el){el.style.borderColor='rgba(239,68,68,0.8)';el.style.boxShadow='0 0 0 3px rgba(239,68,68,0.2)';}
+    if(isSaturday){
+      // วันเสาร์: บังคับกรอก
+      if(!el||el.value.trim()===''){
+        emptyFields.push(b);
+        if(el){el.style.borderColor='rgba(239,68,68,0.8)';el.style.boxShadow='0 0 0 3px rgba(239,68,68,0.2)';}
+      } else {
+        if(el){el.style.borderColor='';el.style.boxShadow='';}
+      }
     } else {
+      // วันปกติ: ไม่บังคับ — ล้าง highlight
       if(el){el.style.borderColor='';el.style.boxShadow='';}
     }
   });
   if(emptyFields.length>0){
     var msg=emptyFields.length===1
       ?'⚠ กรุณากรอกช่อง "'+emptyFields[0]+'" — ถ้าไม่มียอดให้ใส่ 0'
-      :'⚠ ยังกรอกไม่ครบ '+emptyFields.length+' ช่อง — ถ้าไม่มียอดให้ใส่ 0';
+      :'⚠ ยังกรอกไม่ครบ '+emptyFields.length+' ช่อง — ถ้าไม่มียอดให้ใส่ 0'
+        +(isSaturday?' (วันเสาร์ต้องกรอกทุกช่อง)':'');
     toast(msg,'err');
     var firstEl=document.getElementById('b'+emptyFields[0]);
     if(!firstEl&&emptyFields[0]==='Beger') firstEl=document.getElementById('bBeger');
@@ -1896,11 +1907,8 @@ function saveE(){
   var dt=new Date(d);
   var dayN=dt.getDate();
   var dim=new Date(dt.getFullYear(),dt.getMonth()+1,0).getDate();
-  var allSameBranch=SD.filter(function(e){
-    var ed=new Date(e.d);
-    return e.bc===bc&&ed.getMonth()===dt.getMonth()&&ed.getFullYear()===dt.getFullYear()&&ed.getDate()<dayN;
-  });
-  var cumSoFar=allSameBranch.reduce(function(a,e){return a+((e.br&&e.br['Beger'])||0);},0)+begerToday;
+  // MTD: begerToday คือยอดสะสมแล้ว ไม่ต้องบวก entry ก่อนหน้า
+  var cumSoFar=begerToday;
   var pct=tg>0?Math.round(cumSoFar/tg*100):0;
   var pctCol=pct>=100?'#34d27a':pct>=70?'#f5a623':'#e74c3c';
   var forecast=dayN>0?Math.round(cumSoFar/dayN*dim):cumSoFar;
@@ -2090,6 +2098,16 @@ function delE(i){
 // ── Dashboard ─────────────────────────────────────────
 var cS=null,cD=null,cW=null,cP=null,cTr=null,cChain=null;
 
+// ── MTD helper: คืน entry ล่าสุดต่อสาขา (data model = ยอดสะสม MTD) ──
+// ใช้แทน data โดยตรงเมื่อต้องการ "ยอดรวม MTD" ที่ถูกต้อง
+function latestMTD(entries){
+  var map={};
+  entries.forEach(function(e){
+    if(!map[e.bc]||e.d>map[e.bc].d) map[e.bc]=e;
+  });
+  return Object.values(map);
+}
+
 function getF(){
   var mo=document.getElementById('fm').value;
   var ch=document.getElementById('fc').value;
@@ -2109,7 +2127,15 @@ function dc(c){ if(c){try{c.destroy();}catch(e){}} return null; }
 function populatePcSup(){
   var sel=document.getElementById('fps');
   var cur=sel.value;
-  var names=[...new Set(SD.map(function(e){return e.ps||'';}).filter(Boolean))].sort();
+  // FIX: ดึงจาก BRANCHES ก่อน (ครอบคลุม sup ที่ยังไม่ได้ submit) เสริมด้วย SD
+  var supSet=new Set();
+  Object.keys(BRANCHES).forEach(function(chain){
+    Object.keys(BRANCHES[chain]).forEach(function(bc){
+      var sup=BRANCHES[chain][bc][5]; if(sup) supSet.add(sup);
+    });
+  });
+  SD.forEach(function(e){if(e.ps) supSet.add(e.ps);});
+  var names=[...supSet].sort();
   sel.innerHTML='<option value="">ทั้งหมด</option>';
   names.forEach(function(n){
     var o=document.createElement('option');
@@ -2147,16 +2173,18 @@ function rd(){
     return;
   }
 
-  var totS=data.reduce(function(a,b){return a+((b.br&&b.br['Beger'])||0);},0);
-  var totT=data.reduce(function(a,b){return a+b.tg;},0);
+  // MTD: ใช้ entry ล่าสุดต่อสาขา ไม่ sum ทุก entry
+  var mtdData=latestMTD(data);
+  var totS=mtdData.reduce(function(a,b){return a+((b.br&&b.br['Beger'])||0);},0);
+  var totT=mtdData.reduce(function(a,b){return a+b.tg;},0);
   var pct=totT>0?totS/totT*100:0;
   // คาดการณ์ใช้จำนวนวันจริงของเดือนที่เลือก
   var moFilter=document.getElementById('fm').value;
-  var refDate=data.length?new Date(data[0].d):new Date();
+  // FIX: ใช้ maxDate เป็น reference (ไม่ใช้ data[0] ซึ่งอาจเป็น entry เก่า)
+  var maxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
+  var refDate=maxDate;
   var refMonth=moFilter!==''?parseInt(moFilter):refDate.getMonth();
   var daysInMonth=new Date(refDate.getFullYear(),refMonth+1,0).getDate();
-  // หาวันที่ล่าสุดในข้อมูล (max date) เพื่อใช้เป็นตัวหาร
-  var maxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
   var daysPassed=maxDate.getDate(); // วันที่ผ่านมาในเดือน เช่น 20
   var avg=daysPassed>0?totS/daysPassed:0;
   var fore=avg*daysInMonth;
@@ -2178,15 +2206,26 @@ function rd(){
   document.getElementById('k5bar').className='pf'+(forePct>100?' ov':'');
   document.getElementById('k5s').textContent=forePct>=100?'✓ คาดว่าจะปิดเป้าได้':'ยังขาดอีก '+fK(totT-fore)+' จากเป้า';
 
+  // MTD period: หาล่าสุดต่อสาขาในแต่ละช่วง แล้วลบกัน
   var p1=0,p2=0,p3=0;
-  data.forEach(function(e){var x=new Date(e.d).getDate();var v=(e.br&&e.br['Beger'])||0;if(x<=10)p1+=v;else if(x<=20)p2+=v;else p3+=v;});
+  (function(){
+    var d10=latestMTD(data.filter(function(e){return new Date(e.d).getDate()<=10;}));
+    var d20=latestMTD(data.filter(function(e){return new Date(e.d).getDate()<=20;}));
+    var s10=d10.reduce(function(a,e){return a+((e.br&&e.br['Beger'])||0);},0);
+    var s20=d20.reduce(function(a,e){return a+((e.br&&e.br['Beger'])||0);},0);
+    p1=s10;
+    p2=s20-s10;
+    p3=totS-s20;
+    if(p2<0)p2=0; if(p3<0)p3=0;
+  })();
   var maxP=Math.max(p1,p2,p3);
   var bestLabel=maxP===p1?'10 วันแรก':maxP===p2?'10 วันกลาง':'10 วันสุดท้าย';
   // Render new period cards UI
   renderPeriodCards(p1,p2,p3,maxP);
 
   var bt={};BRANDS.forEach(function(b){bt[b]=0;});
-  data.forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(bt[b]!==undefined)bt[b]+=e.br[b];});});
+  // MTD: ใช้ entry ล่าสุดต่อสาขา
+  mtdData.forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(bt[b]!==undefined)bt[b]+=e.br[b];});});
   var ab=BRANDS.filter(function(b){return bt[b]>0;}).sort(function(a,b){return bt[b]-bt[a];});
 
   var _rdRetry=(rd._retry||0);
@@ -2299,8 +2338,28 @@ function rd(){
   });
 
   // ── Trend cumulative line (unified green theme) ───────
-  var cumS=0,cumT=0,cumSales=[],cumTgt=[];
-  sD.forEach(function(d){cumS+=byD[d].s;cumT+=byD[d].t;cumSales.push(Math.round(cumS));cumTgt.push(Math.round(cumT));});
+  // MTD FIX: byD[d].s คือยอดรวม MTD ของวันนั้นแล้ว ไม่ต้อง cumulate ซ้ำ
+  // ใช้ latestMTD ต่อสาขา เพื่อให้แต่ละวันแสดง "ยอดรวมล่าสุดต่อสาขา ณ วันนั้น"
+  var byDLatest={};
+  (function(){
+    var allDates=Object.keys(byD).sort();
+    // สำหรับแต่ละ branch หา entry ล่าสุด ณ แต่ละวัน (carry-forward)
+    var latestByBc={};  // bc -> latest entry so far
+    data.forEach(function(e){ if(!latestByBc[e.bc]||e.d>latestByBc[e.bc].d) latestByBc[e.bc]=e; });
+    // rebuild byDLatest: per day = sum of latest entry per branch up to that day
+    allDates.forEach(function(day){
+      var sumS=0, sumT=0;
+      Object.values(latestByBc).forEach(function(e){
+        if(e.d<=day){
+          sumS+=(e.br&&e.br['Beger'])||0;
+          sumT+=e.tg||0;
+        }
+      });
+      byDLatest[day]={s:sumS, t:sumT};
+    });
+  })();
+  var cumSales=sD.map(function(d){return Math.round((byDLatest[d]||byD[d]).s);});
+  var cumTgt=sD.map(function(d){return Math.round((byDLatest[d]||byD[d]).t);});
   var dlblTr=sD.map(function(d){return new Date(d).getDate();});
   cTr=new Chart(document.getElementById('ctr').getContext('2d'),{
     type:'line',
@@ -2346,13 +2405,13 @@ function rd(){
   var CHAINS=['Homepro','Thai Watsadu','Global House','Megahome','DoHome','DoHome Togo','HomeHub','บุญถาวร','ฮาร์ดแวร์เฮ้าส์','โฮมบุญ','โฮมเพ้นท์','ศิริมหาชัย','Homeshop'];
   var chData={};
   CHAINS.forEach(function(c){chData[c]={s:0,t:0,tot:0,days:new Set()};});
-  data.forEach(function(e){
+  // MTD: ใช้ latestMTD ต่อสาขา
+  latestMTD(data).forEach(function(e){
     if(chData[e.ch]){
       var begerSales=(e.br&&e.br['Beger'])?e.br['Beger']:0;
       chData[e.ch].s+=begerSales;
       chData[e.ch].t+=e.tg;
       chData[e.ch].days.add(e.d);
-      // ยอดรวมทุกแบรนด์สำหรับคำนวณ MS%
       if(e.br){Object.values(e.br).forEach(function(v){chData[e.ch].tot+=v;});}
     }
   });
@@ -2451,7 +2510,8 @@ function renderSupSummary(data) {
 
   // รวมข้อมูลตาม PC Sup
   var supMap = {};
-  data.forEach(function(e) {
+  // MTD: ใช้ entry ล่าสุดต่อสาขา
+  latestMTD(data).forEach(function(e) {
     var sup = e.ps || 'ไม่ระบุ';
     if (!supMap[sup]) supMap[sup] = { s: 0, t: 0, tot: 0, days: new Set(), branches: new Set() };
     var beger = (e.br && e.br['Beger']) ? e.br['Beger'] : 0;
@@ -2511,7 +2571,7 @@ function renderSupSummary(data) {
           '<div style="font-size:12px;font-weight:700;color:' + (hasData ? '#fff' : '#555') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
             (idx + 1) + '. ' + shortName +
           '</div>' +
-          '<div style="font-size:9px;color:#5c6480;margin-top:1px">' + nBranch + ' สาขา · ' + nDays + ' วัน</div>' +
+          '<div style="font-size:9px;color:#5c6480;margin-top:1px">' + nBranch + ' สาขา · ' + d.days.size + ' วันที่ส่ง</div>' +
         '</div>' +
         '<div style="font-size:11px;font-weight:700;color:' + (hasData ? '#e8ecf4' : '#555') + ';text-align:right;font-variant-numeric:tabular-nums">' + fK(d.s) + '</div>' +
         '<div style="text-align:right"><span style="font-size:11px;font-weight:700;color:' + achCol + ';background:' + achBg + ';padding:1px 5px;border-radius:8px">' + (hasData ? ach.toFixed(0) + '%' : '–') + '</span></div>' +
@@ -2557,7 +2617,12 @@ function doExport(){
         tg:e.tg||0
       };
     }
-    branchMonthMap[bmKey].totalBeger+=(e.br&&e.br['Beger'])?e.br['Beger']:0;
+    // MTD FIX: ใช้ entry ล่าสุดต่อสาขาต่อเดือน ไม่ sum ทุก entry
+    var latestSoFar=branchMonthMap[bmKey].latestDate||'';
+    if(!latestSoFar||e.d>=latestSoFar){
+      branchMonthMap[bmKey].totalBeger=(e.br&&e.br['Beger'])?e.br['Beger']:0;
+      branchMonthMap[bmKey].latestDate=e.d;
+    }
     branchMonthMap[bmKey].days.add(e.d);
   });
   // คำนวณ forecast แต่ละ key — ใช้วันที่สูงสุดในเดือนนั้นๆ เป็นตัวหาร
@@ -3147,16 +3212,16 @@ function rt(){
   var wrap=document.getElementById('btable');
   if(!data.length){wrap.innerHTML='<div style="color:#aaa;text-align:center;padding:24px;font-size:13px">ไม่มีข้อมูล</div>';document.getElementById('tsum').innerHTML='';return;}
 
-  // Aggregate by branch — track unique days for avg/day forecast
+  // Aggregate by branch — MTD: ใช้ entry ล่าสุดต่อสาขา
   var byB={};
-  data.forEach(function(e){
+  latestMTD(data).forEach(function(e){
     if(!byB[e.bc]){
       byB[e.bc]={bn:e.bn,ch:e.ch,bc:e.bc,ps:e.ps,rg:e.rg,tg:e.tg,tot:0,br:{},days:new Set(),pc:0};
     }
-    byB[e.bc].tot+=e.tot;
+    byB[e.bc].tot=e.tot;
     byB[e.bc].days.add(e.d);
-    if(e.pc) byB[e.bc].pc=e.pc; // take latest pc value
-    if(e.br) Object.keys(e.br).forEach(function(b){byB[e.bc].br[b]=(byB[e.bc].br[b]||0)+e.br[b];});
+    if(e.pc) byB[e.bc].pc=e.pc;
+    if(e.br) Object.keys(e.br).forEach(function(b){byB[e.bc].br[b]=e.br[b]||0;});
   });
 
   var rows=Object.values(byB).sort(function(a,b){
@@ -3182,7 +3247,7 @@ function rt(){
   var foreCol=forePctAll>=100?'#4ade80':forePctAll>=70?'#fbbf24':'#f87171';
   // Brand MS% — top brand by share
   var btAll={};BRANDS.forEach(function(b){btAll[b]=0;});
-  data.forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(btAll[b]!==undefined)btAll[b]+=e.br[b];});});
+  latestMTD(data).forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(btAll[b]!==undefined)btAll[b]+=e.br[b];});});
   var abAll=BRANDS.filter(function(b){return btAll[b]>0;}).sort(function(a,b){return btAll[b]-btAll[a];});
   var topBrand=abAll.length?abAll[0]:'';
   var btAllTotal=Object.values(btAll).reduce(function(a,v){return a+v;},0); // ยอดรวมทุกแบรนด์สำหรับ MS%
@@ -3948,7 +4013,15 @@ function pinDel(){
 
 // ── Boot ──────────────────────────────────────────────
 function updateTitle(){
-  // header ใหม่ไม่มี htitle/hdate แล้ว — no-op
+  // อัปเดต badge บอก PC ว่าต้องกรอกคู่แข่งหรือเปล่า
+  var di=document.getElementById('idate');
+  var hdr=document.getElementById('comp-sec-hdr');
+  if(!hdr||!di||!di.value) return;
+  var dow=new Date(di.value+'T00:00:00').getDay();
+  var isSat=(dow===6);
+  hdr.innerHTML=isSat
+    ?'🎨 ยอดขายแบรนด์อื่น สะสม MTD (บาท) &nbsp;<span style="background:rgba(245,166,35,0.2);color:#f5a623;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;border:.5px solid rgba(245,166,35,0.4)">⚠ วันเสาร์ — ต้องกรอก</span>'
+    :'🎨 ยอดขายแบรนด์อื่น สะสม MTD (บาท) &nbsp;<span style="background:rgba(127,163,240,0.1);color:#7fa3f0;font-size:10px;font-weight:500;padding:2px 7px;border-radius:8px;border:.5px solid rgba(127,163,240,0.2)">วันปกติ — ไม่บังคับ</span>';
 }
 
 (function(){
