@@ -1641,11 +1641,7 @@ async function initFirebase(){
     onSnapshot(q, function(snapshot){
       SD = snapshot.docs.map(function(d){ var r=d.data(); r._id=d.id; return r; });
       renderList();
-      // refresh แดชบอร์ดหลัก
-      var pg=document.querySelector('.pg.on');
-      if(pg&&pg.id==='pd') rd();
-      if(pg&&pg.id==='pt') rt();
-      // refresh เมื่อ overview modal เปิดอยู่
+      // refresh เมื่อ overview modal เปิดอยู่ (แดชบอร์ดใช้ .ov-pg ไม่ใช่ .pg)
       var ov=document.getElementById('overview-modal');
       if(ov&&ov.classList.contains('open')){
         var ovPg=document.querySelector('.ov-pg.on');
@@ -1891,7 +1887,6 @@ function saveE(){
 
   // MS วันนี้สาขานี้
   // FIX: ไม่บวก sameDayBranch ของสาขาเดียวกัน (bc) ซ้ำกับ entry ใหม่ที่กำลังบันทึก
-  var sameDayBranch=SD.filter(function(e){return e.d===d&&e.bc===bc;});
   var msMap={};
   // ใช้เฉพาะสาขาอื่น (bc ต่างกัน) เพื่อรวม market ในวันเดียวกัน
   SD.filter(function(e){return e.d===d&&e.bc!==bc;}).forEach(function(e){
@@ -2168,6 +2163,7 @@ function rd(){
     var _ms=document.getElementById('ms-table');if(_ms)_ms.innerHTML='';
     var _cs=document.getElementById('chain-summary');if(_cs)_cs.innerHTML='';
     var _dp=document.getElementById('donut-pct');if(_dp)_dp.textContent='-';
+    var _ss=document.getElementById('sup-summary');if(_ss)_ss.innerHTML='';
     return;
   }
 
@@ -2220,7 +2216,6 @@ function rd(){
     if(p2<0)p2=0; if(p3<0)p3=0;
   })();
   var maxP=Math.max(p1,p2,p3);
-  var bestLabel=maxP===p1?'10 วันแรก':maxP===p2?'10 วันกลาง':'10 วันสุดท้าย';
   // Render new period cards UI
   renderPeriodCards(p1,p2,p3,maxP);
 
@@ -2324,36 +2319,9 @@ function rd(){
   var allDatesSet={};
   scopedData.forEach(function(e){ allDatesSet[e.d]=true; });
   var sD=Object.keys(allDatesSet).sort();
-  var dlbl=sD.map(function(d){var dt=new Date(d);return dt.getDate()+'/'+(dt.getMonth()+1);});
   // byD ยังคงสร้างไว้เป็น fallback (กรณี byDLatest ไม่มีข้อมูล)
   var byD={};
   sD.forEach(function(d){byD[d]={s:0,t:0};});
-
-  // ── Daily bar + target line ───────────────────────────
-  // ── 10-day period horizontal bar ──────────────────────
-  cP=new Chart(document.getElementById('cp').getContext('2d'),{
-    type:'bar',
-    data:{
-      labels:['10 วันสุดท้าย (21–31)','10 วันกลาง (11–20)','10 วันแรก (1–10)'],
-      datasets:[{
-        data:[p3,p2,p1],
-        backgroundColor:[
-          p3===maxP&&maxP>0?'#f5a623':'#34d27a',
-          p2===maxP&&maxP>0?'#f5a623':'#34d27a',
-          p1===maxP&&maxP>0?'#f5a623':'#34d27a'
-        ],
-        borderRadius:4,borderSkipped:false
-      }]
-    },
-    options:{
-      indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ' '+fK(ctx.raw);}}}},
-      scales:{
-        x:{ticks:{font:{size:9},callback:function(v){return fK(v);}},grid:{color:'rgba(0,0,0,0.05)'}},
-        y:{ticks:{font:{size:10}},grid:{display:false}}
-      }
-    }
-  });
 
   // ── Trend cumulative line ─────────────────────────────
   // FIX: carry-forward ที่ถูกต้อง — วน loop ทีละวัน สร้าง latestByBc สะสมไปเรื่อยๆ
@@ -2546,14 +2514,19 @@ function renderSupSummary(data) {
 
   // รวมข้อมูลตาม PC Sup
   var supMap = {};
-  // MTD: ใช้ entry ล่าสุดต่อสาขา
+  // FIX: นับ days จาก data ทั้งหมดก่อน (ไม่ใช่แค่ latestMTD) เพื่อให้ได้จำนวนวันที่ส่งจริงต่อ Sup
+  data.forEach(function(e) {
+    var sup = e.ps || 'ไม่ระบุ';
+    if (!supMap[sup]) supMap[sup] = { s: 0, t: 0, tot: 0, days: new Set(), branches: new Set() };
+    supMap[sup].days.add(e.d);
+  });
+  // MTD: ใช้ entry ล่าสุดต่อสาขาสำหรับยอด/เป้า/แบรนด์
   latestMTD(data).forEach(function(e) {
     var sup = e.ps || 'ไม่ระบุ';
     if (!supMap[sup]) supMap[sup] = { s: 0, t: 0, tot: 0, days: new Set(), branches: new Set() };
     var beger = (e.br && e.br['Beger']) ? e.br['Beger'] : 0;
     supMap[sup].s   += beger;
     supMap[sup].t   += e.tg || 0;
-    supMap[sup].days.add(e.d);
     supMap[sup].branches.add((e.ch||'') + '__' + (e.bc||''));
     if (e.br) Object.values(e.br).forEach(function(v) { supMap[sup].tot += v; });
   });
@@ -3318,7 +3291,12 @@ function rt(){
 
   var data=getTF();
   var wrap=document.getElementById('btable');
-  if(!data.length){wrap.innerHTML='<div style="color:#aaa;text-align:center;padding:24px;font-size:13px">ไม่มีข้อมูล</div>';document.getElementById('tsum').innerHTML='';return;}
+  if(!data.length){
+    wrap.innerHTML='<div style="color:#aaa;text-align:center;padding:24px;font-size:13px">ไม่มีข้อมูล</div>';
+    document.getElementById('tsum').innerHTML='';
+    var _ab=document.getElementById('ach-barchart');if(_ab)_ab.innerHTML='';
+    return;
+  }
 
   // FIX: scope ให้เดือนเดียวกับ maxDate เสมอ (เหมือน rd())
   var rtMaxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
@@ -3328,13 +3306,15 @@ function rt(){
   });
 
   // Aggregate by branch — MTD: ใช้ entry ล่าสุดต่อสาขา
+  // FIX: นับ days จาก rtScopedData ทั้งหมด (ไม่ใช่แค่ latestMTD) เพื่อให้ได้จำนวนวันที่บันทึกจริง
   var byB={};
+  var allDaysByBc={};
+  rtScopedData.forEach(function(e){ if(!allDaysByBc[e.bc]) allDaysByBc[e.bc]=new Set(); allDaysByBc[e.bc].add(e.d); });
   latestMTD(rtScopedData).forEach(function(e){
     if(!byB[e.bc]){
-      byB[e.bc]={bn:e.bn,ch:e.ch,bc:e.bc,ps:e.ps,rg:e.rg,tg:e.tg,tot:0,br:{},days:new Set(),pc:0};
+      byB[e.bc]={bn:e.bn,ch:e.ch,bc:e.bc,ps:e.ps,rg:e.rg,tg:e.tg,tot:0,br:{},days:allDaysByBc[e.bc]||new Set(),pc:0};
     }
     byB[e.bc].tot=e.tot;
-    byB[e.bc].days.add(e.d);
     if(e.pc) byB[e.bc].pc=e.pc;
     if(e.br) Object.keys(e.br).forEach(function(b){byB[e.bc].br[b]=e.br[b]||0;});
   });
@@ -3363,7 +3343,6 @@ function rt(){
   var btAll={};BRANDS.forEach(function(b){btAll[b]=0;});
   latestWithBrands(rtScopedData).forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(btAll[b]!==undefined)btAll[b]+=e.br[b];});});
   var abAll=BRANDS.filter(function(b){return btAll[b]>0;}).sort(function(a,b){return btAll[b]-btAll[a];});
-  var topBrand=abAll.length?abAll[0]:'';
   var btAllTotal=Object.values(btAll).reduce(function(a,v){return a+v;},0); // ยอดรวมทุกแบรนด์สำหรับ MS%
   var begerMsAll=btAllTotal>0?(btAll['Beger']/btAllTotal*100):0;
   var achCol=achAll>=100?'#4ade80':achAll>=70?'#fbbf24':'#f87171';
