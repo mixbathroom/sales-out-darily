@@ -1890,9 +1890,14 @@ function saveE(){
   var achForecastCol=achForecast>=100?'#34d27a':achForecast>=80?'#f5a623':'#e74c3c';
 
   // MS วันนี้สาขานี้
+  // FIX: ไม่บวก sameDayBranch ของสาขาเดียวกัน (bc) ซ้ำกับ entry ใหม่ที่กำลังบันทึก
   var sameDayBranch=SD.filter(function(e){return e.d===d&&e.bc===bc;});
   var msMap={};
-  sameDayBranch.forEach(function(e){Object.keys(e.br||{}).forEach(function(b){msMap[b]=(msMap[b]||0)+e.br[b];});});
+  // ใช้เฉพาะสาขาอื่น (bc ต่างกัน) เพื่อรวม market ในวันเดียวกัน
+  SD.filter(function(e){return e.d===d&&e.bc!==bc;}).forEach(function(e){
+    Object.keys(e.br||{}).forEach(function(b){msMap[b]=(msMap[b]||0)+e.br[b];});
+  });
+  // บวก entry ปัจจุบัน (สาขาที่กำลังบันทึก)
   Object.keys(br).forEach(function(b){msMap[b]=(msMap[b]||0)+br[b];});
   var msTotal=Object.values(msMap).reduce(function(a,v){return a+v;},0);
   var msArr=Object.entries(msMap).sort(function(a,b){return b[1]-a[1];});
@@ -2311,8 +2316,9 @@ function rd(){
   }
 
   // ── Build byD (used by Trend chart) ──────────────────
+  // FIX: ใช้ latestMTD ต่อสาขาก่อน แล้วค่อย group ตามวัน
   var byD={};
-  data.forEach(function(e){
+  latestMTD(data).forEach(function(e){
     if(!byD[e.d])byD[e.d]={s:0,t:0};
     byD[e.d].s+=(e.br&&e.br['Beger'])||0;
     byD[e.d].t+=e.tg;
@@ -2346,23 +2352,25 @@ function rd(){
     }
   });
 
-  // ── Trend cumulative line (unified green theme) ───────
-  // MTD FIX: byD[d].s คือยอดรวม MTD ของวันนั้นแล้ว ไม่ต้อง cumulate ซ้ำ
-  // ใช้ latestMTD ต่อสาขา เพื่อให้แต่ละวันแสดง "ยอดรวมล่าสุดต่อสาขา ณ วันนั้น"
+  // ── Trend cumulative line ─────────────────────────────
+  // FIX: carry-forward ที่ถูกต้อง — วน loop ทีละวัน สร้าง latestByBc สะสมไปเรื่อยๆ
+  // ไม่ precompute overall latest เพราะจะทำให้ทุกวัน "เห็น" entry ล่าสุดทันที
   var byDLatest={};
   (function(){
-    var allDates=Object.keys(byD).sort();
-    // สำหรับแต่ละ branch หา entry ล่าสุด ณ แต่ละวัน (carry-forward)
-    var latestByBc={};  // bc -> latest entry so far
-    data.forEach(function(e){ if(!latestByBc[e.bc]||e.d>latestByBc[e.bc].d) latestByBc[e.bc]=e; });
-    // rebuild byDLatest: per day = sum of latest entry per branch up to that day
-    allDates.forEach(function(day){
+    var dataSorted=data.slice().sort(function(a,b){return a.d<b.d?-1:1;});
+    var latestByBc={};
+    var dataIdx=0;
+    sD.forEach(function(day){
+      // เพิ่ม entry ทั้งหมดที่ d <= day สะสมไปเรื่อยๆ
+      while(dataIdx<dataSorted.length && dataSorted[dataIdx].d<=day){
+        var e=dataSorted[dataIdx];
+        if(!latestByBc[e.bc]||e.d>=latestByBc[e.bc].d) latestByBc[e.bc]=e;
+        dataIdx++;
+      }
       var sumS=0, sumT=0;
       Object.values(latestByBc).forEach(function(e){
-        if(e.d<=day){
-          sumS+=(e.br&&e.br['Beger'])||0;
-          sumT+=e.tg||0;
-        }
+        sumS+=(e.br&&e.br['Beger'])||0;
+        sumT+=e.tg||0;
       });
       byDLatest[day]={s:sumS, t:sumT};
     });
@@ -2540,7 +2548,9 @@ function renderSupSummary(data) {
   });
 
   // คำนวณ forecast + MS%
-  var refDate = data.length ? new Date(data[0].d) : new Date();
+  // FIX: ใช้ maxDate แทน data[0].d ที่อาจไม่เรียงลำดับ
+  var supRefMaxDate = data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;}, new Date(data[0].d));
+  var refDate = supRefMaxDate;
   var moFilter = document.getElementById('fm') ? document.getElementById('fm').value : '';
   var mo = moFilter !== '' ? parseInt(moFilter) : refDate.getMonth();
   var daysInMonth = new Date(refDate.getFullYear(), mo + 1, 0).getDate();
@@ -3472,15 +3482,16 @@ function showBranch(bc,ch){
   if(!data.length) return;
   // เรียงจากใหม่สุด → ใช้ record ล่าสุดสำหรับ pc/pcpromo/ps/rg
   var sorted=data.slice().sort(function(a,b){return a.d<b.d?1:-1;});
-  var r=sorted[0];
-  var totSales=data.reduce(function(a,b){return a+((b.br&&b.br['Beger'])||0);},0); // เฉพาะ Beger
-  var totAll=data.reduce(function(a,b){return a+b.tot;},0); // รวมทุกแบรนด์ (สำหรับ MS%)
+  var r=sorted[0]; // entry ล่าสุด = ยอด MTD ล่าสุด
+  // MTD FIX: ใช้ entry ล่าสุดเพียงรายการเดียว (ข้อมูลเป็น MTD สะสม ไม่ใช่รายวัน)
+  var totSales=(r.br&&r.br['Beger'])||0; // เฉพาะ Beger จาก entry ล่าสุด
+  var totAll=r.tot||0; // รวมทุกแบรนด์จาก entry ล่าสุด
   var pct=r.tg>0?(totSales/r.tg*100):0;
   var pctCol=pct>=100?'var(--gr2)':pct>=70?'var(--am)':'var(--rd)';
 
-  // Brand breakdown
+  // Brand breakdown: ใช้ entry ล่าสุด (MTD) เท่านั้น
   var br={};BRANDS.forEach(function(b){br[b]=0;});
-  data.forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(br[b]!==undefined)br[b]+=e.br[b];});});
+  if(r.br)Object.keys(r.br).forEach(function(b){if(br[b]!==undefined)br[b]=r.br[b];});
   var ab=BRANDS.filter(function(b){return br[b]>0;}).sort(function(a,b){return br[b]-br[a];});
 
   document.getElementById('modal-title').textContent=r.bn;
@@ -3517,12 +3528,13 @@ function showBranch(bc,ch){
       '</div>';
     }).join('')+
     '</div>'+
-    // Daily list
-    '<div style="font-size:11px;font-weight:600;color:var(--tx2);margin:12px 0 6px">ประวัติการบันทึก</div>'+
+    // Daily list — eBeger คือยอด MTD สะสม ณ วันนั้น (ไม่ใช่ยอดรายวัน)
+    '<div style="font-size:11px;font-weight:600;color:var(--tx2);margin:12px 0 6px">ประวัติการบันทึก <span style="font-size:9px;color:var(--tx3);font-weight:400">(ยอด MTD สะสม)</span></div>'+
     '<div class="mcard" style="padding:8px 11px">'+
     data.slice().sort(function(a,b){return a.d<b.d?1:-1;}).map(function(e){
       var dp=new Date(e.d).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'});
       var eBeger=(e.br&&e.br['Beger'])||0;
+      // FIX: ep คือ ACH% ของยอดสะสม MTD ณ วันนั้น เทียบเป้าเต็มเดือน
       var ep=e.tg>0?(eBeger/e.tg*100).toFixed(0):0;
       var ec=ep>=100?'var(--gr2)':ep>=70?'var(--am)':'var(--rd)';
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:.5px solid var(--bd);font-size:12px">'+
