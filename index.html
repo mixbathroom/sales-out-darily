@@ -2172,18 +2172,20 @@ function rd(){
   }
 
   // MTD: ใช้ entry ล่าสุดต่อสาขา ไม่ sum ทุก entry
-  var mtdData=latestMTD(data);
+  var maxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
+  var moFilter=document.getElementById('fm').value;
+  var refMonth=moFilter!==''?parseInt(moFilter):maxDate.getMonth();
+  var refYear=maxDate.getFullYear();
+  // FIX A: scope data ให้ตรงกับเดือน maxDate เสมอ (ป้องกัน cross-month MTD ผิด)
+  var scopedData = moFilter!=='' ? data : data.filter(function(e){
+    var d=new Date(e.d); return d.getMonth()===maxDate.getMonth()&&d.getFullYear()===refYear;
+  });
+  var mtdData=latestMTD(scopedData);
   var totS=mtdData.reduce(function(a,b){return a+((b.br&&b.br['Beger'])||0);},0);
   var totT=mtdData.reduce(function(a,b){return a+b.tg;},0);
   var pct=totT>0?totS/totT*100:0;
-  // คาดการณ์ใช้จำนวนวันจริงของเดือนที่เลือก
-  var moFilter=document.getElementById('fm').value;
-  // FIX: ใช้ maxDate เป็น reference (ไม่ใช้ data[0] ซึ่งอาจเป็น entry เก่า)
-  var maxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
-  var refDate=maxDate;
-  var refMonth=moFilter!==''?parseInt(moFilter):refDate.getMonth();
-  var daysInMonth=new Date(refDate.getFullYear(),refMonth+1,0).getDate();
-  var daysPassed=maxDate.getDate(); // วันที่ผ่านมาในเดือน เช่น 20
+  var daysInMonth=new Date(refYear,refMonth+1,0).getDate();
+  var daysPassed=maxDate.getDate(); // วันที่ล่าสุดในเดือนนั้น
   var avg=daysPassed>0?totS/daysPassed:0;
   var fore=avg*daysInMonth;
 
@@ -2205,10 +2207,11 @@ function rd(){
   document.getElementById('k5s').textContent=forePct>=100?'✓ คาดว่าจะปิดเป้าได้':'ยังขาดอีก '+fK(totT-fore)+' จากเป้า';
 
   // MTD period: หาล่าสุดต่อสาขาในแต่ละช่วง แล้วลบกัน
+  // FIX B: ใช้ scopedData (เดือนเดียวกับ maxDate) ป้องกัน cross-month
   var p1=0,p2=0,p3=0;
   (function(){
-    var d10=latestMTD(data.filter(function(e){return new Date(e.d).getDate()<=10;}));
-    var d20=latestMTD(data.filter(function(e){return new Date(e.d).getDate()<=20;}));
+    var d10=latestMTD(scopedData.filter(function(e){return new Date(e.d).getDate()<=10;}));
+    var d20=latestMTD(scopedData.filter(function(e){return new Date(e.d).getDate()<=20;}));
     var s10=d10.reduce(function(a,e){return a+((e.br&&e.br['Beger'])||0);},0);
     var s20=d20.reduce(function(a,e){return a+((e.br&&e.br['Beger'])||0);},0);
     p1=s10;
@@ -2223,7 +2226,7 @@ function rd(){
 
   var bt={};BRANDS.forEach(function(b){bt[b]=0;});
   // ใช้ latestWithBrands (วันเสาร์) สำหรับ MS% — ป้องกัน Beger 100%
-  latestWithBrands(data).forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(bt[b]!==undefined)bt[b]+=e.br[b];});});
+  latestWithBrands(scopedData).forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(bt[b]!==undefined)bt[b]+=e.br[b];});});
   var ab=BRANDS.filter(function(b){return bt[b]>0;}).sort(function(a,b){return bt[b]-bt[a];});
 
   var _rdRetry=(rd._retry||0);
@@ -2315,16 +2318,16 @@ function rd(){
     if(dpct)dpct.textContent=begerMs+'%';
   }
 
-  // ── Build byD (used by Trend chart) ──────────────────
-  // FIX: ใช้ latestMTD ต่อสาขาก่อน แล้วค่อย group ตามวัน
-  var byD={};
-  latestMTD(data).forEach(function(e){
-    if(!byD[e.d])byD[e.d]={s:0,t:0};
-    byD[e.d].s+=(e.br&&e.br['Beger'])||0;
-    byD[e.d].t+=e.tg;
-  });
-  var sD=Object.keys(byD).sort();
+  // ── Build sD (all unique submission dates) + byD (per-date snapshot) ──
+  // sD ต้องครอบคลุมทุกวันที่มีการส่งข้อมูล ไม่ใช่แค่วันล่าสุดต่อสาขา
+  // byDLatest carry-forward จะคำนวณยอดรวมทุกสาขา ณ แต่ละวันใน sD
+  var allDatesSet={};
+  scopedData.forEach(function(e){ allDatesSet[e.d]=true; });
+  var sD=Object.keys(allDatesSet).sort();
   var dlbl=sD.map(function(d){var dt=new Date(d);return dt.getDate()+'/'+(dt.getMonth()+1);});
+  // byD ยังคงสร้างไว้เป็น fallback (กรณี byDLatest ไม่มีข้อมูล)
+  var byD={};
+  sD.forEach(function(d){byD[d]={s:0,t:0};});
 
   // ── Daily bar + target line ───────────────────────────
   // ── 10-day period horizontal bar ──────────────────────
@@ -2357,7 +2360,7 @@ function rd(){
   // ไม่ precompute overall latest เพราะจะทำให้ทุกวัน "เห็น" entry ล่าสุดทันที
   var byDLatest={};
   (function(){
-    var dataSorted=data.slice().sort(function(a,b){return a.d<b.d?-1:1;});
+    var dataSorted=scopedData.slice().sort(function(a,b){return a.d<b.d?-1:1;});
     var latestByBc={};
     var dataIdx=0;
     sD.forEach(function(day){
@@ -2411,16 +2414,29 @@ function rd(){
   });
 
   // ── Day of week bar (NEW UI) ──────────────────────────
-  // DoW: ใช้ latestMTD และป้องกัน Infinity เมื่อ data ว่าง
+  // FIX: คำนวณยอดรายวัน = MTD วันนี้ - MTD วันก่อนหน้า (daily delta)
+  // byDLatest[d].s คือยอด MTD สะสม → ต้องลบวันก่อนหน้าออกเพื่อได้ยอดรายวัน
   var dT=[0,0,0,0,0,0,0],dC=[0,0,0,0,0,0,0];
-  latestMTD(data).forEach(function(e){
-    var dw=new Date(e.d).getDay();var idx=dw===0?6:dw-1;
-    dT[idx]+=(e.br&&e.br['Beger'])||0;dC[idx]++;
+  sD.forEach(function(d, i){
+    var curMTD=(byDLatest[d]&&byDLatest[d].s!=null)?byDLatest[d].s:(byD[d]?byD[d].s:0);
+    var prevMTD=0;
+    if(i>0){
+      var prevD=sD[i-1];
+      prevMTD=(byDLatest[prevD]&&byDLatest[prevD].s!=null)?byDLatest[prevD].s:(byD[prevD]?byD[prevD].s:0);
+    }
+    // FIX C: ถ้าข้ามเดือน (MTD reset) ให้ถือว่า curMTD คือยอดรายวันทั้งหมด
+    var dCur=new Date(d+'T00:00:00'), dPrev=i>0?new Date(sD[i-1]+'T00:00:00'):null;
+    var monthBoundary=dPrev&&(dCur.getMonth()!==dPrev.getMonth()||dCur.getFullYear()!==dPrev.getFullYear());
+    var dailyVal=monthBoundary?curMTD:(curMTD-prevMTD);
+    if(dailyVal<0) dailyVal=0;
+    var dw=new Date(d+'T00:00:00').getDay();var idx=dw===0?6:dw-1;
+    dT[idx]+=dailyVal; dC[idx]++;
   });
+  // dA = ยอดรายวันเฉลี่ย (กรณีมีหลายสัปดาห์)
   var dA=dT.map(function(t,i){return dC[i]>0?Math.round(t/dC[i]):0;});
   var maxDow=Math.max.apply(null,dA)||0;
   var posVals=dA.filter(function(v){return v>0;});
-  var minDow=posVals.length?Math.min.apply(null,posVals):0; // ป้องกัน Infinity
+  var minDow=posVals.length?Math.min.apply(null,posVals):0;
   renderDowBars(dA,maxDow,minDow);
 
   // ── Chain comparison horizontal bar (Beger only) ──────
@@ -2429,9 +2445,9 @@ function rd(){
   CHAINS.forEach(function(c){chData[c]={s:0,t:0,tot:0,days:new Set()};});
   // MTD: ใช้ latestMTD ต่อสาขา
   // ยอด Beger MTD: latestMTD | MS% tot: latestWithBrands
-  var lwb=latestWithBrands(data);
+  var lwb=latestWithBrands(scopedData);
   var lwbMap={};lwb.forEach(function(e){lwbMap[e.bc]=e;});
-  latestMTD(data).forEach(function(e){
+  latestMTD(scopedData).forEach(function(e){
     if(chData[e.ch]){
       var begerSales=(e.br&&e.br['Beger'])?e.br['Beger']:0;
       chData[e.ch].s+=begerSales;
@@ -2444,14 +2460,9 @@ function rd(){
   });
   var activeCh=CHAINS.filter(function(c){return chData[c]&&chData[c].days.size>0;});
 
-  // compute forecast per chain: avg/day * จำนวนวันจริงของเดือน
-  // FIX: ใช้ chainMaxDate เป็น reference ก่อน (ไม่ใช้ data[0])
-  var chainMaxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
-  var chainRefDate=chainMaxDate;
-  var chainMoFilter=document.getElementById('fm').value;
-  var chainMonth=chainMoFilter!==''?parseInt(chainMoFilter):chainRefDate.getMonth();
-  var chainDaysInMonth=new Date(chainRefDate.getFullYear(),chainMonth+1,0).getDate();
-  var chainDaysPassed=chainMaxDate.getDate();
+  // compute forecast per chain: reuse maxDate/daysPassed/daysInMonth ที่คำนวณไว้แล้ว
+  var chainDaysInMonth=daysInMonth;
+  var chainDaysPassed=daysPassed;
   activeCh.forEach(function(c){
     var d=chData[c];
     d.fore=Math.round((d.s/chainDaysPassed)*chainDaysInMonth);
@@ -2514,7 +2525,7 @@ function rd(){
     }).join('');
 
   document.getElementById('chain-summary').innerHTML=chainSummaryHtml;
-  renderSupSummary(data);
+  renderSupSummary(scopedData);
 
   // ── Brand ranking ─────────────────────────────────────
   if(!ab.length){document.getElementById('brank').innerHTML=empty;return;}
@@ -2548,12 +2559,12 @@ function renderSupSummary(data) {
   });
 
   // คำนวณ forecast + MS%
-  // FIX: ใช้ maxDate แทน data[0].d ที่อาจไม่เรียงลำดับ
-  var supRefMaxDate = data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;}, new Date(data[0].d));
-  var refDate = supRefMaxDate;
+  // data ที่รับเข้ามาเป็น scopedData (scoped to correct month) แล้ว
+  var supMaxDate = data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;}, new Date(data[0].d));
   var moFilter = document.getElementById('fm') ? document.getElementById('fm').value : '';
-  var mo = moFilter !== '' ? parseInt(moFilter) : refDate.getMonth();
-  var daysInMonth = new Date(refDate.getFullYear(), mo + 1, 0).getDate();
+  var mo = moFilter !== '' ? parseInt(moFilter) : supMaxDate.getMonth();
+  var daysInMonth = new Date(supMaxDate.getFullYear(), mo + 1, 0).getDate();
+  var supDaysPassed = supMaxDate.getDate();
 
   var sups = Object.keys(supMap).sort(function(a, b) {
     return supMap[b].s - supMap[a].s;
@@ -2569,9 +2580,6 @@ function renderSupSummary(data) {
       '<div style="color:rgba(245,166,35,0.7);font-size:9px;font-weight:600;text-align:right">คาด%</div>' +
       '<div style="color:rgba(126,200,160,0.9);font-size:9px;font-weight:600;text-align:right">MS%</div>' +
     '</div>';
-
-  var supMaxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
-  var supDaysPassed=supMaxDate.getDate();
   html += sups.map(function(sup, idx) {
     var d = supMap[sup];
     var ach     = d.t > 0 ? (d.s / d.t * 100) : 0;
@@ -3312,9 +3320,16 @@ function rt(){
   var wrap=document.getElementById('btable');
   if(!data.length){wrap.innerHTML='<div style="color:#aaa;text-align:center;padding:24px;font-size:13px">ไม่มีข้อมูล</div>';document.getElementById('tsum').innerHTML='';return;}
 
+  // FIX: scope ให้เดือนเดียวกับ maxDate เสมอ (เหมือน rd())
+  var rtMaxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
+  var tmVal2=document.getElementById('tm').value;
+  var rtScopedData = tmVal2!=='' ? data : data.filter(function(e){
+    var d=new Date(e.d); return d.getMonth()===rtMaxDate.getMonth()&&d.getFullYear()===rtMaxDate.getFullYear();
+  });
+
   // Aggregate by branch — MTD: ใช้ entry ล่าสุดต่อสาขา
   var byB={};
-  latestMTD(data).forEach(function(e){
+  latestMTD(rtScopedData).forEach(function(e){
     if(!byB[e.bc]){
       byB[e.bc]={bn:e.bn,ch:e.ch,bc:e.bc,ps:e.ps,rg:e.rg,tg:e.tg,tot:0,br:{},days:new Set(),pc:0};
     }
@@ -3336,18 +3351,17 @@ function rt(){
   var achAll=tgtAll>0?(totAll/tgtAll*100):0;
   var above=rows.filter(function(r){return r.tg>0&&(r.br['Beger']||0)/r.tg>=1;}).length;
   var tmVal=document.getElementById('tm').value;
-  // FIX: ใช้ maxDateAll เป็น reference (occurrence ที่ 3 — rt())
-  var maxDateAll=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
-  var refForDate=maxDateAll;
-  var foreMonth=tmVal!==''?parseInt(tmVal):refForDate.getMonth();
-  var foreDaysInMonth=new Date(refForDate.getFullYear(),foreMonth+1,0).getDate();
+  // FIX: reuse rtMaxDate, scope ให้ตรงเดือน
+  var maxDateAll=rtMaxDate;
+  var foreMonth=tmVal!==''?parseInt(tmVal):maxDateAll.getMonth();
+  var foreDaysInMonth=new Date(maxDateAll.getFullYear(),foreMonth+1,0).getDate();
   var daysPassedAll=maxDateAll.getDate();
   var foreAll=rows.reduce(function(a,r){return a+((r.br['Beger']||0)/daysPassedAll*foreDaysInMonth);},0);
   var forePctAll=tgtAll>0?(foreAll/tgtAll*100):0;
   var foreCol=forePctAll>=100?'#4ade80':forePctAll>=70?'#fbbf24':'#f87171';
   // Brand MS% — top brand by share
   var btAll={};BRANDS.forEach(function(b){btAll[b]=0;});
-  latestWithBrands(data).forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(btAll[b]!==undefined)btAll[b]+=e.br[b];});});
+  latestWithBrands(rtScopedData).forEach(function(e){if(e.br)Object.keys(e.br).forEach(function(b){if(btAll[b]!==undefined)btAll[b]+=e.br[b];});});
   var abAll=BRANDS.filter(function(b){return btAll[b]>0;}).sort(function(a,b){return btAll[b]-btAll[a];});
   var topBrand=abAll.length?abAll[0]:'';
   var btAllTotal=Object.values(btAll).reduce(function(a,v){return a+v;},0); // ยอดรวมทุกแบรนด์สำหรับ MS%
