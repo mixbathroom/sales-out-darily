@@ -1553,7 +1553,7 @@ function getBranch(ch,bc){ return (BRANCHES[ch]&&BRANCHES[ch][bc])||null; }
 // months: 3=Apr, 4=May, 5=Jun — other months clamp to nearest
 function getTarget(b,dateStr){
   if(!b||!dateStr) return b?b[3]:0; // default May
-  var mo=new Date(dateStr).getMonth(); // 0-indexed
+  var mo=new Date(dateStr+'T00:00:00').getMonth(); // 0-indexed
   if(mo<=3) return b[2]; // Jan–Apr → Apr target
   if(mo===4) return b[3]; // May
   if(mo>=5) return b[4]; // Jun–Dec → Jun target
@@ -1737,7 +1737,7 @@ function autoFillPC(ch,bc){
   if(prev&&(prev.pc||prev.pcpromo)){
     document.getElementById('ipc').value=prev.pc||0;
     document.getElementById('ipcpromo').value=prev.pcpromo||0;
-    var d=new Date(prev.d);
+    var d=new Date(prev.d+'T00:00:00');
     var mo=d.toLocaleDateString('th-TH',{month:'long',year:'2-digit'});
     hint.style.display='flex';
     hint.innerHTML='<span style="font-size:11px;color:var(--gr);flex:1">📋 ดึงข้อมูล PC จาก '+mo+'</span>'+
@@ -1874,7 +1874,7 @@ function saveE(){
 
   // คำนวณข้อมูลสรุป
   var begerToday=br['Beger']||0;
-  var dt=new Date(d);
+  var dt=new Date(d+'T00:00:00');
   var dayN=dt.getDate();
   var dim=new Date(dt.getFullYear(),dt.getMonth()+1,0).getDate();
   // MTD: begerToday คือยอดสะสมแล้ว ไม่ต้องบวก entry ก่อนหน้า
@@ -1885,21 +1885,17 @@ function saveE(){
   var achForecast=tg>0?Math.round(forecast/tg*100):0;
   var achForecastCol=achForecast>=100?'#34d27a':achForecast>=80?'#f5a623':'#e74c3c';
 
-  // MS วันนี้สาขานี้
-  // FIX: ไม่บวก sameDayBranch ของสาขาเดียวกัน (bc) ซ้ำกับ entry ใหม่ที่กำลังบันทึก
+  // MS รายสาขา: ใช้ข้อมูลที่กรอกตอนนี้ (br) เท่านั้น
+  // เหตุผล: SD เป็นยอด MTD สะสม ไม่สามารถนำมาบวกข้ามสาขาได้
+  // MS% ในหน้านี้จึงแสดงเฉพาะ "สัดส่วนแบรนด์ในสาขานี้" ไม่ใช่ market share ตลาด
   var msMap={};
-  // ใช้เฉพาะสาขาอื่น (bc ต่างกัน) เพื่อรวม market ในวันเดียวกัน
-  SD.filter(function(e){return e.d===d&&e.bc!==bc;}).forEach(function(e){
-    Object.keys(e.br||{}).forEach(function(b){msMap[b]=(msMap[b]||0)+e.br[b];});
-  });
-  // บวก entry ปัจจุบัน (สาขาที่กำลังบันทึก)
-  Object.keys(br).forEach(function(b){msMap[b]=(msMap[b]||0)+br[b];});
+  Object.keys(br).forEach(function(b){if(br[b]>0) msMap[b]=br[b];});
   var msTotal=Object.values(msMap).reduce(function(a,v){return a+v;},0);
   var msArr=Object.entries(msMap).sort(function(a,b){return b[1]-a[1];});
   var MS_C=['#34d27a','#2d8653','#7ec8a0','#f5a623','#e67e22','#5eadd4','#9b8fd4','#5dc8b5','#e8845c'];
 
   // เติมข้อมูลใน modal
-  var dateStr=new Date(d).toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'});
+  var dateStr=new Date(d+'T00:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'});
   var smBranch=document.getElementById('sm-branch');
   if(smBranch) smBranch.innerHTML=
     '<div style="display:flex;justify-content:space-between;align-items:center">'+
@@ -1909,7 +1905,7 @@ function saveE(){
     '<div style="color:var(--ac3);font-size:10px">Beger วันนี้</div></div></div>';
 
   var lbEl=document.getElementById('sm-today-label');
-  if(lbEl) lbEl.textContent='Beger สะสม 1–'+dayN+' '+new Date(d).toLocaleDateString('th-TH',{month:'short'});
+  if(lbEl) lbEl.textContent='Beger สะสม 1–'+dayN+' '+new Date(d+'T00:00:00').toLocaleDateString('th-TH',{month:'short'});
   var smToday=document.getElementById('sm-today'); if(smToday) smToday.textContent=fK(cumSoFar);
   var smPct=document.getElementById('sm-pct'); if(smPct) smPct.innerHTML='<span style="color:'+pctCol+'">'+pct+'%</span>';
   var smForecast=document.getElementById('sm-forecast'); if(smForecast) smForecast.textContent=fK(forecast);
@@ -2107,7 +2103,7 @@ function getF(){
   var br=document.getElementById('fbr').value;
   var ps=document.getElementById('fps').value;
   return SD.filter(function(e){
-    if(mo!==''&&new Date(e.d).getMonth()!==parseInt(mo)) return false;
+    if(mo!==''&&new Date(e.d+'T00:00:00').getMonth()!==parseInt(mo)) return false;
     if(ch&&e.ch!==ch) return false;
     if(br&&e.bc!==br) return false;
     if(ps&&e.ps!==ps) return false;
@@ -2168,13 +2164,13 @@ function rd(){
   }
 
   // MTD: ใช้ entry ล่าสุดต่อสาขา ไม่ sum ทุก entry
-  var maxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
+  var maxDate=data.reduce(function(mx,e){var d=new Date(e.d+'T00:00:00');return d>mx?d:mx;},new Date(data[0].d+'T00:00:00'));
   var moFilter=document.getElementById('fm').value;
   var refMonth=moFilter!==''?parseInt(moFilter):maxDate.getMonth();
   var refYear=maxDate.getFullYear();
   // FIX A: scope data ให้ตรงกับเดือน maxDate เสมอ (ป้องกัน cross-month MTD ผิด)
   var scopedData = moFilter!=='' ? data : data.filter(function(e){
-    var d=new Date(e.d); return d.getMonth()===maxDate.getMonth()&&d.getFullYear()===refYear;
+    var d=new Date(e.d+'T00:00:00'); return d.getMonth()===maxDate.getMonth()&&d.getFullYear()===refYear;
   });
   var mtdData=latestMTD(scopedData);
   var totS=mtdData.reduce(function(a,b){return a+((b.br&&b.br['Beger'])||0);},0);
@@ -2206,8 +2202,8 @@ function rd(){
   // FIX B: ใช้ scopedData (เดือนเดียวกับ maxDate) ป้องกัน cross-month
   var p1=0,p2=0,p3=0;
   (function(){
-    var d10=latestMTD(scopedData.filter(function(e){return new Date(e.d).getDate()<=10;}));
-    var d20=latestMTD(scopedData.filter(function(e){return new Date(e.d).getDate()<=20;}));
+    var d10=latestMTD(scopedData.filter(function(e){return new Date(e.d+'T00:00:00').getDate()<=10;}));
+    var d20=latestMTD(scopedData.filter(function(e){return new Date(e.d+'T00:00:00').getDate()<=20;}));
     var s10=d10.reduce(function(a,e){return a+((e.br&&e.br['Beger'])||0);},0);
     var s20=d20.reduce(function(a,e){return a+((e.br&&e.br['Beger'])||0);},0);
     p1=s10;
@@ -2533,7 +2529,7 @@ function renderSupSummary(data) {
 
   // คำนวณ forecast + MS%
   // data ที่รับเข้ามาเป็น scopedData (scoped to correct month) แล้ว
-  var supMaxDate = data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;}, new Date(data[0].d));
+  var supMaxDate = data.reduce(function(mx,e){var d=new Date(e.d+'T00:00:00');return d>mx?d:mx;}, new Date(data[0].d+'T00:00:00'));
   var moFilter = document.getElementById('fm') ? document.getElementById('fm').value : '';
   var mo = moFilter !== '' ? parseInt(moFilter) : supMaxDate.getMonth();
   var daysInMonth = new Date(supMaxDate.getFullYear(), mo + 1, 0).getDate();
@@ -2614,7 +2610,7 @@ function doExport(){
   // กลุ่มข้อมูลตาม branch+month
   var branchMonthMap={};
   cleanSD.forEach(function(e){
-    var dt=new Date(e.d);
+    var dt=new Date(e.d+'T00:00:00');
     var bmKey=(e.bc||'')+'__'+(e.ch||'')+'__'+dt.getMonth()+'__'+dt.getFullYear();
     if(!branchMonthMap[bmKey]){
       branchMonthMap[bmKey]={
@@ -2638,7 +2634,7 @@ function doExport(){
     var daysInMonth=new Date(bm.year,bm.month+1,0).getDate();
     // หา max day ในเดือนนั้นของสาขานั้น
     var maxDay=0;
-    bm.days.forEach(function(dateStr){var d=new Date(dateStr).getDate();if(d>maxDay)maxDay=d;});
+    bm.days.forEach(function(dateStr){var d=new Date(dateStr+'T00:00:00').getDate();if(d>maxDay)maxDay=d;});
     var nDays=maxDay||1;
     var fore=Math.round((bm.totalBeger/nDays)*daysInMonth);
     var forePct=bm.tg>0?Math.round(fore/bm.tg*100):0;
@@ -2647,7 +2643,7 @@ function doExport(){
 
   // ── STEP 3: สร้าง rows ──
   var rows=cleanSD.map(function(e){
-    var dt=new Date(e.d);
+    var dt=new Date(e.d+'T00:00:00');
     var bmKey=(e.bc||'')+'__'+(e.ch||'')+'__'+dt.getMonth()+'__'+dt.getFullYear();
     var fm=forecastMap[bmKey]||{fore:0,forePct:0};
     var r={
@@ -3268,7 +3264,7 @@ function getTF(){
   var ch=document.getElementById('tc').value;
   var ps=document.getElementById('tps').value;
   return SD.filter(function(e){
-    if(mo!==''&&new Date(e.d).getMonth()!==parseInt(mo)) return false;
+    if(mo!==''&&new Date(e.d+'T00:00:00').getMonth()!==parseInt(mo)) return false;
     if(ch&&e.ch!==ch) return false;
     if(ps&&e.ps!==ps) return false;
     return true;
@@ -3299,10 +3295,10 @@ function rt(){
   }
 
   // FIX: scope ให้เดือนเดียวกับ maxDate เสมอ (เหมือน rd())
-  var rtMaxDate=data.reduce(function(mx,e){var d=new Date(e.d);return d>mx?d:mx;},new Date(data[0].d));
+  var rtMaxDate=data.reduce(function(mx,e){var d=new Date(e.d+'T00:00:00');return d>mx?d:mx;},new Date(data[0].d+'T00:00:00'));
   var tmVal2=document.getElementById('tm').value;
   var rtScopedData = tmVal2!=='' ? data : data.filter(function(e){
-    var d=new Date(e.d); return d.getMonth()===rtMaxDate.getMonth()&&d.getFullYear()===rtMaxDate.getFullYear();
+    var d=new Date(e.d+'T00:00:00'); return d.getMonth()===rtMaxDate.getMonth()&&d.getFullYear()===rtMaxDate.getFullYear();
   });
 
   // Aggregate by branch — MTD: ใช้ entry ล่าสุดต่อสาขา
@@ -3476,6 +3472,13 @@ function showBranch(bc,ch){
   // เรียงจากใหม่สุด → ใช้ record ล่าสุดสำหรับ pc/pcpromo/ps/rg
   var sorted=data.slice().sort(function(a,b){return a.d<b.d?1:-1;});
   var r=sorted[0]; // entry ล่าสุด = ยอด MTD ล่าสุด
+  // FIX: scope วันที่บันทึกให้เฉพาะเดือนล่าสุด ป้องกัน cross-month count
+  var latestMonth=new Date(r.d+'T00:00:00').getMonth();
+  var latestYear=new Date(r.d+'T00:00:00').getFullYear();
+  var monthData=data.filter(function(e){
+    var dd=new Date(e.d+'T00:00:00');
+    return dd.getMonth()===latestMonth&&dd.getFullYear()===latestYear;
+  });
   // MTD FIX: ใช้ entry ล่าสุดเพียงรายการเดียว (ข้อมูลเป็น MTD สะสม ไม่ใช่รายวัน)
   var totSales=(r.br&&r.br['Beger'])||0; // เฉพาะ Beger จาก entry ล่าสุด
   var totAll=r.tot||0; // รวมทุกแบรนด์จาก entry ล่าสุด
@@ -3505,7 +3508,7 @@ function showBranch(bc,ch){
       '<div class="mrow"><span class="mk">จำนวน PC</span><span class="mv2">'+(r.pc!=null?r.pc+' คน':'-')+'</span></div>'+
       '<div class="mrow"><span class="mk">PC Promotion</span><span class="mv2">'+(r.pcpromo!=null&&r.pcpromo>0?r.pcpromo+' คน':'-')+'</span></div>'+
       '<div class="mrow"><span class="mk">ภูมิภาค</span><span class="mv2">'+(r.rg||'-')+'</span></div>'+
-      '<div class="mrow"><span class="mk">จำนวนวันที่บันทึก</span><span class="mv2">'+data.length+' วัน</span></div>'+
+      '<div class="mrow"><span class="mk">จำนวนวันที่บันทึก</span><span class="mv2">'+monthData.length+' วัน (เดือนนี้)</span></div>'+
     '</div>'+
     // Brand breakdown
     '<div style="font-size:11px;font-weight:600;color:var(--tx2);margin:12px 0 6px">ยอดขายแยกแบรนด์</div>'+
@@ -3525,7 +3528,7 @@ function showBranch(bc,ch){
     '<div style="font-size:11px;font-weight:600;color:var(--tx2);margin:12px 0 6px">ประวัติการบันทึก <span style="font-size:9px;color:var(--tx3);font-weight:400">(ยอด MTD สะสม)</span></div>'+
     '<div class="mcard" style="padding:8px 11px">'+
     data.slice().sort(function(a,b){return a.d<b.d?1:-1;}).map(function(e){
-      var dp=new Date(e.d).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'});
+      var dp=new Date(e.d+'T00:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'});
       var eBeger=(e.br&&e.br['Beger'])||0;
       // FIX: ep คือ ACH% ของยอดสะสม MTD ณ วันนั้น เทียบเป้าเต็มเดือน
       var ep=e.tg>0?(eBeger/e.tg*100).toFixed(0):0;
