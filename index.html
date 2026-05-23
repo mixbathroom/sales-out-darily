@@ -1695,6 +1695,7 @@ async function delFromDB(id){
 }
 
 function fK(n){ n=Math.round(n||0); return n.toLocaleString(); }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 // ── Chain → Branch cascade (ENTRY) ───────────────────
 function onCC(){
@@ -1907,7 +1908,7 @@ function saveE(){
     '<div>'+
       (_pendingIsUpdate?'<div style="display:inline-block;background:rgba(251,191,36,0.15);border:.5px solid rgba(251,191,36,0.4);color:#fbbf24;font-size:10px;font-weight:700;border-radius:20px;padding:2px 10px;margin-bottom:4px">✏️ แก้ไขข้อมูลเดิม</div><br>':'') +
       '<div style="color:#fff;font-size:14px;font-weight:700">'+(bn||bc)+'</div>'+
-      '<div style="color:var(--ac3);font-size:11px;margin-top:2px">'+ch+' · '+pv+' · '+dateStr+'</div>'+
+      '<div style="color:var(--ac3);font-size:11px;margin-top:2px">'+esc(ch)+' · '+esc(pv)+' · '+dateStr+'</div>'+
     '</div>'+
     '<div style="text-align:right"><div style="color:#34d27a;font-size:18px;font-weight:700">'+fK(begerToday)+'</div>'+
     '<div style="color:var(--ac3);font-size:10px">Beger วันนี้</div></div></div>';
@@ -1957,7 +1958,7 @@ function saveE(){
     var pms=msTotal>0?(kv[1]/msTotal*100).toFixed(1):0;
     var col=MS_C[i%MS_C.length];
     return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+
-      '<div style="color:'+(i===0?'#fff':'#b0c4b8')+';font-size:11px;width:70px;font-weight:'+(i===0?700:400)+'">'+kv[0]+'</div>'+
+      '<div style="color:'+(i===0?'#fff':'#b0c4b8')+';font-size:11px;width:70px;font-weight:'+(i===0?700:400)+'">'+esc(kv[0])+'</div>'+
       '<div style="flex:1;background:rgba(255,255,255,0.07);border-radius:4px;height:6px;overflow:hidden">'+
         '<div style="height:6px;border-radius:4px;background:'+col+';width:'+pms+'%"></div></div>'+
       '<div style="color:'+col+';font-size:11px;font-weight:600;width:38px;text-align:right">'+pms+'%</div></div>';
@@ -1968,7 +1969,7 @@ function saveE(){
   if(smBrands) smBrands.innerHTML=Object.entries(br).map(function(kv){
     var pms=tot>0?(kv[1]/tot*100).toFixed(1):0;
     return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:.5px solid rgba(255,255,255,0.05)">'+
-      '<span style="color:#b0c4b8;font-size:12px">'+kv[0]+'</span>'+
+      '<span style="color:#b0c4b8;font-size:12px">'+esc(kv[0])+'</span>'+
       '<span style="color:#fff;font-size:12px;font-weight:600">'+fK(kv[1])+'<span style="color:var(--ac3);font-size:10px;margin-left:5px">'+pms+'%</span></span></div>';
   }).join('');
 
@@ -2051,8 +2052,8 @@ function showSaveSuccess(branchName, chainName){
   if(!overlay||!branchEl) return;
 
   branchEl.innerHTML=
-    '<div style="color:#fff;font-size:17px;font-weight:700">'+branchName+'</div>'+
-    '<div style="color:#8893b0;font-size:12px;margin-top:4px">'+chainName+'</div>';
+    '<div style="color:#fff;font-size:17px;font-weight:700">'+esc(branchName)+'</div>'+
+    '<div style="color:#8893b0;font-size:12px;margin-top:4px">'+esc(chainName)+'</div>';
 
   overlay.style.display='flex';
 
@@ -2352,7 +2353,7 @@ function rd(){
   })();
   var cumSales=sD.map(function(d){return Math.round((byDLatest[d]||byD[d]).s);});
   var cumTgt=sD.map(function(d){return Math.round((byDLatest[d]||byD[d]).t);});
-  var dlblTr=sD.map(function(d){return new Date(d).getDate();});
+  var dlblTr=sD.map(function(d){return new Date(d+'T00:00:00').getDate();});
   cTr=new Chart(document.getElementById('ctr').getContext('2d'),{
     type:'line',
     data:{labels:dlblTr,datasets:[
@@ -2524,7 +2525,9 @@ function renderSupSummary(data) {
     if (!supMap[sup]) supMap[sup] = { s: 0, t: 0, tot: 0, days: new Set(), branches: new Set() };
     supMap[sup].days.add(e.d);
   });
-  // MTD: ใช้ entry ล่าสุดต่อสาขาสำหรับยอด/เป้า/แบรนด์
+  // MTD: ใช้ entry ล่าสุดต่อสาขาสำหรับยอด/เป้า/branches
+  var supLwbMap={};
+  latestWithBrands(data).forEach(function(e){ supLwbMap[e.bc]=e; });
   latestMTD(data).forEach(function(e) {
     var sup = e.ps || 'ไม่ระบุ';
     if (!supMap[sup]) supMap[sup] = { s: 0, t: 0, tot: 0, days: new Set(), branches: new Set() };
@@ -2532,7 +2535,9 @@ function renderSupSummary(data) {
     supMap[sup].s   += beger;
     supMap[sup].t   += e.tg || 0;
     supMap[sup].branches.add((e.ch||'') + '__' + (e.bc||''));
-    if (e.br) Object.values(e.br).forEach(function(v) { supMap[sup].tot += v; });
+    // FIX: ใช้ entry เสาร์ (latestWithBrands) สำหรับ tot (MS%) ไม่ใช่ entry วันธรรมดา
+    var msE = supLwbMap[e.bc] || e;
+    if (msE.br) Object.values(msE.br).forEach(function(v) { supMap[sup].tot += v; });
   });
 
   // คำนวณ forecast + MS%
@@ -2977,7 +2982,7 @@ function renderHeatmap(branchStats, shortDays, todayStr){
           '<span style="font-size:9px;color:rgba(255,255,255,0.2);font-weight:400;flex-shrink:0;font-variant-numeric:tabular-nums">'+(idx+1)+'.</span>' +
           chainBadge(b.ch) +
           '<span style="font-size:10px;color:'+(isMiss?'#d07878':'#4a9a6a')+';font-weight:'+(isMiss?500:400)+
-          ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+b.bn+'">'+shortBN(b.bn)+'</span>' +
+          ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(b.bn)+'">'+shortBN(b.bn)+'</span>' +
           '</div></td>';
     shortDays.forEach(function(d){
       var has = b.submitted.has(d);
@@ -3215,8 +3220,8 @@ function rm(){
         var lastTxt  = b.lastSent ? '(ส่งล่าสุด '+new Date(b.lastSent+'T00:00:00').getDate()+'/'+(new Date(b.lastSent+'T00:00:00').getMonth()+1)+')' : 'ยังไม่เคยส่ง';
         return '<div class="miss-list-item">'+
           '<div style="flex:1;min-width:0">'+
-            '<div style="font-size:12px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+b.bn+'</div>'+
-            '<div style="font-size:10px;color:var(--tx3);margin-top:2px">'+b.ch+' · ติดต่อกัน '+b.streak+' วัน · '+lastTxt+'</div>'+
+            '<div style="font-size:12px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(b.bn)+'</div>'+
+            '<div style="font-size:10px;color:var(--tx3);margin-top:2px">'+esc(b.ch)+' · ติดต่อกัน '+b.streak+' วัน · '+lastTxt+'</div>'+
           '</div>'+
           '<span class="miss-badge '+badgeCls+'">'+badgeTxt+'</span>'+
         '</div>';
@@ -3237,7 +3242,7 @@ function rm(){
     _mmChart = new Chart(ctx, {
       type:'bar',
       data:{
-        labels: shortDays.map(function(d){ var dd=new Date(d); return (dd.getMonth()+1)+'/'+(dd.getDate()); }),
+        labels: shortDays.map(function(d){ var dd=new Date(d+'T00:00:00'); return (dd.getMonth()+1)+'/'+(dd.getDate()); }),
         datasets:[{
           data: dayRates,
           backgroundColor: dayRates.map(function(v){ return v>=80?'rgba(52,210,122,0.6)':v>=60?'rgba(251,191,36,0.6)':'rgba(248,113,113,0.6)'; }),
@@ -3374,9 +3379,13 @@ function rt(){
       '<div style="color:#b0c8f8;font-size:10px;margin-bottom:6px">คาดการณ์สิ้นเดือน</div>'+
       '<div style="color:#fff;font-size:16px;font-weight:700;line-height:1.2">'+fK(foreAll)+'</div>'+
       '<div style="color:'+foreCol+';font-size:12px;font-weight:600;margin-top:2px">'+forePctAll.toFixed(1)+'%</div>'+
-    '</div>'
+    '</div>';
 
   // PC count per branch (unique)
+  // FIX: define lwbMap ใน rt() scope (ก่อนหน้านี้ define แค่ใน rd())
+  var lwb=latestWithBrands(rtScopedData);
+  var lwbMap={};lwb.forEach(function(e){lwbMap[e.bc]=e;});
+
   wrap.innerHTML=rows.map(function(r,i){
     var begerSales=r.br['Beger']||0;
     var pct=r.tg>0?(begerSales/r.tg*100):0;
@@ -3398,9 +3407,9 @@ function rt(){
     var cls=pct>=100?'hi':pct>=70?'md':'lo';
     var fcls=forePct>=100?'#4ade80':forePct>=70?'#fbbf24':'#f87171';
     var bar=Math.min(pct,100).toFixed(0);
-    return '<div class="brow" onclick="showBranch(\''+r.bc+'\',\''+r.ch+'\')" style="position:relative;overflow:hidden">'+
+    return '<div class="brow" data-bc="'+r.bc+'" data-ch="'+r.ch+'" onclick="showBranch(this.dataset.bc,this.dataset.ch)" style="position:relative;overflow:hidden">'+
       
-      '<div class="bn">'+r.bn+'</div>'+
+      '<div class="bn">'+esc(r.bn)+'</div>'+
       '<div class="bpc" style="color:#6ee7b7">'+(r.pc||'-')+'</div>'+
       '<div class="bv">'+fK(begerSales)+'</div>'+
       '<div style="font-size:11px;text-align:right;color:#8893b0;font-variant-numeric:tabular-nums">'+fK(r.tg)+'</div>'+
@@ -3409,7 +3418,7 @@ function rt(){
       '<div style="font-size:11px;font-weight:700;text-align:right;color:'+fcls+'">'+forePct.toFixed(0)+'%</div>'+
       '<div style="font-size:11px;font-weight:700;text-align:right;color:'+msCls+'">'+begerMs.toFixed(1)+'%</div>'+
       '<div style="display:flex;align-items:center;justify-content:center">'+
-        '<button onclick="event.stopPropagation();deleteBranch(\''+r.bc+'\',\''+r.ch+'\',\''+r.bn+'\')" '+
+        '<button data-bc="'+r.bc+'" data-ch="'+r.ch+'" data-bn="'+esc(r.bn)+'" onclick="event.stopPropagation();deleteBranch(this.dataset.bc,this.dataset.ch,this.dataset.bn)" '+
           'style="background:transparent;border:none;color:rgba(248,113,113,0.2);border-radius:4px;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;transition:color .2s,background .2s" '+
           'onmouseover="this.style.color=\'#f87171\';this.style.background=\'rgba(220,38,38,0.18)\'" '+
           'onmouseout="this.style.color=\'rgba(248,113,113,0.2)\';this.style.background=\'transparent\'">'+
@@ -3424,7 +3433,7 @@ function rt(){
 }
 
 async function deleteBranch(bc, ch, bn){
-  requirePin('ลบข้อมูล "'+bn+'"', async function(){
+  requirePin('ลบข้อมูล "'+esc(bn)+'"', async function(){
     if(!window._fsDel){ toast('⚠ Firebase ยังไม่พร้อม', 'err'); return; }
     var toDelete = SD.filter(function(e){ return e.bc===bc && e.ch===ch; });
     if(!toDelete.length){ toast('ไม่พบข้อมูลของสาขานี้', 'err'); return; }
@@ -3466,7 +3475,7 @@ function renderAchChart(rows){
     // ตัดชื่อถ้ายาวเกิน
     var shortName = name.length > 14 ? name.substring(0,14)+'…' : name;
     return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:.5px solid rgba(255,255,255,0.04)">' +
-      '<div style="width:120px;font-size:11px;color:#c8d4e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="'+name+'">'+shortName+'</div>'+
+      '<div style="width:120px;font-size:11px;color:#c8d4e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="'+esc(name)+'">'+shortName+'</div>'+
       '<div style="flex:1;background:rgba(255,255,255,0.06);border-radius:20px;height:14px;overflow:hidden">'+
         '<div style="height:14px;border-radius:20px;background:'+barCol+';width:'+barW+'%;transition:width .5s ease;min-width:'+(pct>0?'4px':'0')+';display:flex;align-items:center;justify-content:flex-end;padding-right:4px">'+
         '</div>'+
@@ -3492,13 +3501,14 @@ function showBranch(bc,ch){
   });
   // MTD FIX: ใช้ entry ล่าสุดเพียงรายการเดียว (ข้อมูลเป็น MTD สะสม ไม่ใช่รายวัน)
   var totSales=(r.br&&r.br['Beger'])||0; // เฉพาะ Beger จาก entry ล่าสุด
-  var totAll=r.tot||0; // รวมทุกแบรนด์จาก entry ล่าสุด
   var pct=r.tg>0?(totSales/r.tg*100):0;
   var pctCol=pct>=100?'var(--gr2)':pct>=70?'var(--am)':'var(--rd)';
 
-  // Brand breakdown: ใช้ entry ล่าสุด (MTD) เท่านั้น
+  // Brand breakdown: ใช้ entry เสาร์ล่าสุด (latestWithBrands) ถ้ามี ป้องกัน MS%=100%
+  var lwbEntry=latestWithBrands(monthData).filter(function(e){return e.bc===bc;})[0]||r;
   var br={};BRANDS.forEach(function(b){br[b]=0;});
-  if(r.br)Object.keys(r.br).forEach(function(b){if(br[b]!==undefined)br[b]=r.br[b];});
+  if(lwbEntry.br)Object.keys(lwbEntry.br).forEach(function(b){if(br[b]!==undefined)br[b]=lwbEntry.br[b];});
+  var totAll=Object.values(br).reduce(function(a,v){return a+v;},0); // รวมทุกแบรนด์จาก entry เสาร์
   var ab=BRANDS.filter(function(b){return br[b]>0;}).sort(function(a,b){return br[b]-br[a];});
 
   document.getElementById('modal-title').textContent=r.bn;
@@ -3514,7 +3524,7 @@ function showBranch(bc,ch){
     '<div style="background:var(--bg);border-radius:6px;height:8px;margin-bottom:14px;overflow:hidden"><div style="height:100%;border-radius:6px;width:'+Math.min(pct,100)+'%;background:'+(pct>=100?'var(--gr2)':pct>=70?'var(--am)':'var(--rd)')+'"></div></div>'+
     // Info
     '<div class="mcard">'+
-      '<div class="mrow"><span class="mk">Chain</span><span class="mv2">'+r.ch+'</span></div>'+
+      '<div class="mrow"><span class="mk">Chain</span><span class="mv2">'+esc(r.ch)+'</span></div>'+
       '<div class="mrow"><span class="mk">PC Sup</span><span class="mv2">'+(r.ps||'-')+'</span></div>'+
       '<div class="mrow"><span class="mk">จำนวน PC</span><span class="mv2">'+(r.pc!=null?r.pc+' คน':'-')+'</span></div>'+
       '<div class="mrow"><span class="mk">PC Promotion</span><span class="mv2">'+(r.pcpromo!=null&&r.pcpromo>0?r.pcpromo+' คน':'-')+'</span></div>'+
@@ -3709,13 +3719,13 @@ function renderBranchList(chain, q){
 
   var html = '';
   Object.keys(grouped).forEach(function(ch){
-    html += '<div style="font-size:10px;font-weight:700;color:var(--ac2);letter-spacing:.8px;text-transform:uppercase;padding:10px 4px 6px">'+ch+'</div>';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--ac2);letter-spacing:.8px;text-transform:uppercase;padding:10px 4px 6px">'+esc(ch)+'</div>';
     grouped[ch].forEach(function(r){
-      html += '<div onclick="pickBranch(\''+ch+'\',\''+r.bc+'\',\''+r.bn+'\')" '+
+      html += '<div data-ch="'+esc(ch)+'" data-bc="'+esc(r.bc)+'" data-bn="'+esc(r.bn)+'" onclick="var d=this.dataset;pickBranch(d.ch,d.bc,d.bn)" '+
         'style="display:flex;align-items:center;justify-content:space-between;padding:13px 14px;background:rgba(255,255,255,0.03);border-radius:10px;margin-bottom:6px;cursor:pointer;border:.5px solid rgba(255,255,255,0.06);active:background:rgba(61,107,224,0.15)">'+
         '<div>'+
-          '<div style="font-size:14px;font-weight:600;color:#fff">'+r.bn+'</div>'+
-          '<div style="font-size:11px;color:var(--tx3);margin-top:2px">'+r.pv+'</div>'+
+          '<div style="font-size:14px;font-weight:600;color:#fff">'+esc(r.bn)+'</div>'+
+          '<div style="font-size:11px;color:var(--tx3);margin-top:2px">'+esc(r.pv)+'</div>'+
         '</div>'+
         '<div style="text-align:right;flex-shrink:0">'+
           '<div style="font-size:12px;font-weight:600;color:var(--ac2)">฿'+Math.round(r.tg/1000)+'K</div>'+
@@ -3730,11 +3740,11 @@ function renderBranchList(chain, q){
 function pickBranch(ch, bc, bn){
   // set hidden selects so existing JS still works
   var sc = document.getElementById('sc');
-  sc.innerHTML = '<option value="'+ch+'">'+ch+'</option>';
+  sc.innerHTML = '<option value="'+esc(ch)+'">'+esc(ch)+'</option>';
   sc.value = ch;
 
   var sb = document.getElementById('sb');
-  sb.innerHTML = '<option value="'+bc+'">'+bn+'</option>';
+  sb.innerHTML = '<option value="'+esc(bc)+'">'+esc(bn)+'</option>';
   sb.value = bc;
 
   // update display button (ถ้ามี element นี้ใน UI)
