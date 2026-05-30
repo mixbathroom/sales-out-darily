@@ -1605,7 +1605,7 @@ async function initFirebase(){
   var statusEl = document.getElementById('fb-status');
   try {
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
-    const { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, query, orderBy } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+    const { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, query, orderBy, waitForPendingWrites } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
 
     const app = initializeApp({
       apiKey: "AIzaSyClQz6OGs5LcfM2m5M3H3SyJLcP_BxqVSQ",
@@ -1618,7 +1618,16 @@ async function initFirebase(){
     _db = getFirestore(app);
 
     // ✅ ตั้งค่า _fsAdd/_fsDel ก่อน onSnapshot เพื่อให้บันทึกได้ทันที
-    window._fsAdd = (entry) => addDoc(collection(_db,'sales'), entry);
+    // _fsAdd รอ waitForPendingWrites เพื่อให้แน่ใจว่าข้อมูลถึง server จริง ไม่ใช่แค่ local cache
+    window._fsAdd = async (entry) => {
+      const ref = await addDoc(collection(_db,'sales'), entry);
+      const syncPromise = waitForPendingWrites(_db);
+      const timeoutPromise = new Promise((_,reject) =>
+        setTimeout(() => reject(Object.assign(new Error('sync-timeout'), {code:'sync-timeout'})), 10000)
+      );
+      await Promise.race([syncPromise, timeoutPromise]);
+      return ref;
+    };
     window._fsDel = (id) => deleteDoc(doc(_db,'sales',id));
     _fbReady = true; // ✅ ป้องกัน init ซ้ำ
 
@@ -1681,8 +1690,14 @@ async function sav(entry){
     await window._fsAdd(entry);
     return true;
   } catch(e){
-    var msg = e && e.code ? e.code : 'unknown';
-    toast('❌ บันทึกไม่สำเร็จ: '+msg, 'err');
+    var code = e && e.code ? e.code : String(e);
+    if(code==='sync-timeout'){
+      toast('⚠ เน็ตช้า — ข้อมูลอาจยังไม่ถึง Server กรุณาลองใหม่', 'err');
+    } else if(code==='unavailable'){
+      toast('❌ ไม่มีอินเทอร์เน็ต — กรุณาเช็คสัญญาณแล้วลองใหม่', 'err');
+    } else {
+      toast('❌ บันทึกไม่สำเร็จ: '+code, 'err');
+    }
     console.error('Save error:', e);
     return false;
   }
@@ -2006,10 +2021,18 @@ async function confirmSave(){
   _isSaving = true;
   var entry=_pendingEntry;
   var btn=document.getElementById('btn-confirm-save');
-  if(btn){ btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...'; }
+
+  // ── Phase 1: กำลังส่งข้อมูล ──
+  if(btn){ btn.disabled=true; btn.textContent='⏳ กำลังส่งข้อมูล...'; }
 
   try {
+    // _fsAdd จะรอจนข้อมูลถึง Firestore server จริง (ไม่ใช่แค่ local cache)
+    // ถ้าเน็ตไม่ดี ปุ่มจะค้างที่ "กำลัง sync..." แทนที่จะแสดง "สำเร็จ" ก่อนเวลา
+
+    // ── Phase 2: รอ sync ขึ้น server ──
+    if(btn){ btn.textContent='🔄 กำลัง sync...'; }
     await window._fsAdd(entry);
+
     _isSaving = false;
     _pendingEntry=null;
 
@@ -2026,19 +2049,25 @@ async function confirmSave(){
     document.getElementById('branch-info').style.display='none';
     var hint=document.getElementById('pc-autofill-hint'); if(hint) hint.style.display='none';
 
-    // แสดงหน้า Success แทนปิด modal
+    // ── Phase 3: ข้อมูลถึง server จริงแล้ว — แสดง Success ──
     showSaveSuccess(entry.bn, entry.ch);
 
   } catch(e) {
     _isSaving = false;
-    if(btn){ btn.disabled=false; btn.textContent='✓ ยืนยันบันทึก'; }
     console.error('Save error:', e);
     var code=(e&&e.code)?e.code:String(e);
-    if(code==='permission-denied'){
+    if(code==='sync-timeout'){
+      // ข้อมูลอาจถึง Firestore แล้ว แต่ยืนยันไม่ได้ภายใน 10 วินาที
+      if(btn){ btn.disabled=false; btn.textContent='⚠️ Sync ช้า — ลองใหม่'; }
+      toast('⚠ เน็ตช้า — ข้อมูลอาจยังไม่ถึง Server กรุณาลองใหม่', 'err');
+    } else if(code==='permission-denied'){
+      if(btn){ btn.disabled=false; btn.textContent='✓ ยืนยันบันทึก'; }
       toast('❌ ไม่มีสิทธิ์บันทึก — ตรวจสอบ Firebase Rules', 'err');
     } else if(code==='unavailable'){
-      toast('❌ ไม่มีอินเทอร์เน็ต — ลองใหม่อีกครั้ง', 'err');
+      if(btn){ btn.disabled=false; btn.textContent='🔄 ลองใหม่อีกครั้ง'; }
+      toast('❌ ไม่มีอินเทอร์เน็ต — กรุณาเช็คสัญญาณแล้วลองใหม่', 'err');
     } else {
+      if(btn){ btn.disabled=false; btn.textContent='✓ ยืนยันบันทึก'; }
       toast('❌ บันทึกไม่สำเร็จ: ' + code, 'err');
     }
   }
